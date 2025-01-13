@@ -3,7 +3,7 @@ import sqlite3
 from datetime import datetime
 import os
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static')
 
 # Configure upload folder
 UPLOAD_FOLDER = 'static/uploads'
@@ -37,8 +37,25 @@ def slots_booked(date):
     return total if total else 0
 
 @app.route('/')
-def index():
-    return render_template('index.html')
+def home():
+    return render_template('home.html')
+
+@app.route('/select-masjid', methods=['GET'])
+def select_masjid():
+    masjid = request.args.get('masjid')
+    if not masjid:
+        return redirect(url_for('home'))
+    # Redirect to the specific masjid's form page
+    return redirect(url_for('masjid_form', masjid=masjid))
+
+@app.route('/masjid/<masjid>')
+def masjid_form(masjid):
+    # Check for specific masjid and render the corresponding form
+    if masjid == "MasjidBilal":
+        return render_template('form.html', masjid_name="Masjid Bilal (Kyle, TX)")
+    else:
+        return render_template('404.html'), 404
+
 
 @app.route('/available-slots', methods=['GET'])
 def available_slots():
@@ -54,7 +71,8 @@ def available_slots():
     except ValueError:
         return jsonify({"status": "error", "message": "Invalid date format."})
 
-    booked = slots_booked(date)
+    # Calculate available slots
+    booked = slots_booked(date)  # Assume slots_booked(date) returns the number of slots already booked
     available = max(0, 8 - booked)
     return jsonify({"status": "success", "available": available})
 

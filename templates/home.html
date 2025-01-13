@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Iftar - Choose Your Masjid</title>
+    <link rel="stylesheet" href="static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <img src="static/logo_ichc.jpg" alt="Book Iftar Logo" class="logo">
+            <h1>Welcome to BookIftar.com</h1>
+            <p>Make your Ramadan more rewarding by sponsoring an Iftar at your local masjid.</p>
+        </header>
+        <div class="choose-masjid">
+            <h2>Choose Your Masjid</h2>
+            <form action="/select-masjid" method="GET">
+                <select id="masjid" name="masjid" required>
+                    <option value="" disabled selected>Select Your Masjid</option>
+                    <option value="MasjidBilal">Masjid Bilal (Kyle, TX)</option>
+                </select>
+                <br>
+                <button type="submit" class="button">Continue</button>
+            </form>
+        </div>
+        <footer class="footer">
+            <p>&copy; 2025 BookIftar.com. All rights reserved.</p>
+        </footer>
+    </div>
+</body>
+</html>

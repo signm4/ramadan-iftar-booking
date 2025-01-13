@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Iftar - {{ masjid_name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const dateInput = document.getElementById('date');
+            const availabilityDiv = document.getElementById('availability');
+            const slotsDropdown = document.getElementById('quantity');
+            const totalAmount = document.getElementById('total-amount');
+
+            // Set the allowed date range for the calendar
+            const minDate = "2025-02-28";
+            const maxDate = "2025-03-29";
+            dateInput.setAttribute('min', minDate);
+            dateInput.setAttribute('max', maxDate);
+
+            // Fetch availability and update slots dynamically
+            dateInput.addEventListener('change', function () {
+                const dateValue = dateInput.value;
+
+                // Ensure a date is selected
+                if (!dateValue) {
+                    availabilityDiv.textContent = "Please select a valid date.";
+                    slotsDropdown.innerHTML = `<option value="" disabled selected>Select Slots</option>`;
+                    totalAmount.textContent = "Total Amount Due: ";
+                    return;
+                }
+
+                // Fetch available slots from the server
+                fetch(`/available-slots?date=${dateValue}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === "success") {
+                            // Display available slots
+                            const availableSlots = data.available;
+                            availabilityDiv.textContent = `Available Slots: ${availableSlots}`;
+
+                            // Update the dropdown with available options
+                            updateDropdown(availableSlots);
+                        } else {
+                            availabilityDiv.textContent = data.message;
+                            slotsDropdown.innerHTML = `<option value="" disabled selected>Select Slots</option>`;
+                            totalAmount.textContent = "Total Amount Due: ";
+                        }
+                    })
+                    .catch(error => {
+                        availabilityDiv.textContent = "Error fetching availability.";
+                        console.error(error);
+                    });
+            });
+
+            // Update dropdown options and total amount
+            function updateDropdown(availableSlots) {
+                let options = `<option value="" disabled selected>Select Slots</option>`;
+                for (let i = 1; i <= availableSlots; i++) {
+                    options += `<option value="${i}">${i} Slot${i > 1 ? 's' : ''} - $${i * 250}</option>`;
+                }
+                slotsDropdown.innerHTML = options;
+
+                // Update total amount dynamically
+                slotsDropdown.addEventListener('change', function () {
+                    const slots = parseInt(slotsDropdown.value, 10);
+                    const total = slots * 250; // $250 per slot
+                    totalAmount.textContent = `Total Amount Due: $${total}`;
+                });
+            }
+        });
+    </script>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <img src="{{ url_for('static', filename='logo_ichc.jpg') }}" alt="Masjid Logo" class="logo">
+            <h1>{{ masjid_name }}</h1>
+            <p>Sponsor an Iftar for this Ramadan and earn immense rewards.</p>
+        </header>
+        <form action="/book" method="POST" enctype="multipart/form-data" class="booking-form">
+            <label for="date">Select Date (Fri-Sun):</label>
+            <input type="date" id="date" name="date" required>
+            <div id="availability" class="availability">Available Slots: </div>
+            <br>
+
+            <label for="quantity">Number of Slots:</label>
+            <select id="quantity" name="quantity" required>
+                <option value="" disabled selected>Select Slots</option>
+            </select>
+            <div id="total-amount" class="total-amount">Total Amount Due: </div>
+            <br>
+
+            <label for="name">Your Name:</label>
+            <input type="text" id="name" name="name" required>
+            <br>
+
+            <label for="phone">Phone Number:</label>
+            <input type="tel" id="phone" name="phone" required>
+            <br>
+
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" required>
+            <br>
+
+            <label for="payment-method">Payment Method:</label>
+            <input type="text" id="payment-method" name="payment_method" placeholder="Enter your payment method (e.g., Zelle, Venmo, etc.)" required>
+            <br>
+
+            <label for="payment-proof">Upload Payment Confirmation:</label>
+            <input type="file" id="payment-proof" name="payment-proof" accept="image/*" required>
+            <br>
+
+            <button type="submit" class="submit-button">Book</button>
+        </form>
+    </div>
+</body>
+</html>
