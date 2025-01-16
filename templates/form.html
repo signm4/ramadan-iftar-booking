@@ -89,36 +89,40 @@
             <input type="date" id="date" name="date" required>
             <div id="availability" class="availability">Available Slots: </div>
             <br>
-
+        
             <label for="quantity">Number of Slots:</label>
             <select id="quantity" name="quantity" required>
                 <option value="" disabled selected>Select Slots</option>
             </select>
             <div id="total-amount" class="total-amount">Total Amount Due: </div>
             <br>
-
+        
             <label for="name">Your Name:</label>
             <input type="text" id="name" name="name" required>
             <br>
-
+        
             <label for="phone">Phone Number:</label>
             <input type="tel" id="phone" name="phone" required>
             <br>
-
+        
             <label for="email">Email:</label>
             <input type="email" id="email" name="email" required>
             <br>
-
+        
             <label for="payment-method">Payment Method:</label>
             <input type="text" id="payment-method" name="payment_method" placeholder="Enter your payment method (e.g., Zelle, Venmo, etc.)" required>
             <br>
-
+        
             <label for="payment-proof">Upload Payment Confirmation:</label>
             <input type="file" id="payment-proof" name="payment-proof" accept="image/*" required>
             <br>
-
+        
+            <!-- Hidden input for Masjid -->
+            <input type="hidden" id="masjid" name="masjid" value="{{ masjid }}"> <!-- Replace "MasjidBilal" dynamically if needed -->
+            
             <button type="submit" class="submit-button">Book</button>
         </form>
+        
     </div>
 </body>
 </html>

@@ -24,7 +24,7 @@ def init_db():
             phone TEXT NOT NULL,
             email TEXT NOT NULL,
             masjid TEXT NOT NULL,
-            payment_method TEXT NOT NULL
+            payment_method TEXT NOT NULL,
             payment_proof TEXT NOT NULL
         )
     ''')
@@ -32,7 +32,7 @@ def init_db():
     conn.close()
 
 # Call init_db() when the app starts
-init_db()
+# init_db()
 
 
 # Configure upload folder
@@ -180,6 +180,7 @@ def book():
     name = request.form['name']
     phone = request.form['phone']
     email = request.form['email']
+    masjid = request.form.get('masjid')  # Ensure this is retrieved from the form
     payment_method = request.form['payment_method']
     payment_proof = request.files.get('payment-proof')
 
@@ -190,6 +191,10 @@ def book():
             return jsonify({"status": "error", "message": "Invalid date. Only Fridays, Saturdays, and Sundays are allowed."})
     except ValueError:
         return jsonify({"status": "error", "message": "Invalid date format."})
+
+    # Ensure masjid is provided
+    if not masjid:
+        return jsonify({"status": "error", "message": "Masjid information is missing."})
 
     # Check availability
     booked = slots_booked(date)
@@ -206,13 +211,16 @@ def book():
     # Save booking
     conn = sqlite3.connect('bookings.db')
     c = conn.cursor()
-    c.execute("INSERT INTO bookings (date, quantity, name, phone, email, payment_method, payment_proof) VALUES (?, ?, ?, ?, ?, ?, ?)",
-              (date, quantity, name, phone, email, payment_method, filename))
+    c.execute("""
+        INSERT INTO bookings (date, quantity, name, phone, email, masjid, payment_method, payment_proof) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (date, quantity, name, phone, email, masjid, payment_method, filename))
     conn.commit()
     conn.close()
 
     # Redirect to thank you page
     return redirect(url_for('thank_you'))
+
 
 @app.route('/thank-you')
 def thank_you():
