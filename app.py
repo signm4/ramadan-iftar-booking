@@ -1,7 +1,7 @@
-from flask import Flask, request, render_template, jsonify, redirect, url_for, session
+from flask import Flask, request, render_template, jsonify, redirect, url_for, session, make_response
 import sqlite3
 from datetime import datetime
-import os
+import os, csv, io
 
 app = Flask(__name__, static_folder='static')
 
@@ -117,25 +117,37 @@ def admin_dashboard(masjid):
 
     return render_template('admin_dashboard.html', masjid=masjid, dates=dates)
 
+
 @app.route('/admin-dashboard/<masjid>/details', methods=['GET'])
 def date_details(masjid):
     # Ensure admin is logged in
     if not session.get('admin_logged_in') or session.get('masjid') != masjid:
         return redirect('/')
 
-    # Get the selected date from the query parameters
+    # Get the selected date and search query from the request
     date = request.args.get('date')
+    search_query = request.args.get('search', '').strip().lower()  # Search query
+
     if not date:
         return redirect(f'/admin-dashboard/{masjid}')
 
     # Fetch donor details for the selected date
     conn = sqlite3.connect("bookings.db")
     cursor = conn.cursor()
-    cursor.execute('''
-        SELECT name, phone, email, quantity, payment_method, payment_proof
-        FROM bookings
-        WHERE masjid = ? AND date = ?
-    ''', (masjid, date))
+    if search_query:
+        # Search by name or email
+        cursor.execute('''
+            SELECT name, phone, email, quantity, payment_method, payment_proof
+            FROM bookings
+            WHERE masjid = ? AND date = ? AND (LOWER(name) LIKE ? OR LOWER(email) LIKE ?)
+        ''', (masjid, date, f"%{search_query}%", f"%{search_query}%"))
+    else:
+        # Fetch all donors for the date
+        cursor.execute('''
+            SELECT name, phone, email, quantity, payment_method, payment_proof
+            FROM bookings
+            WHERE masjid = ? AND date = ?
+        ''', (masjid, date))
     donors_data = cursor.fetchall()
     conn.close()
 
@@ -152,8 +164,44 @@ def date_details(masjid):
         for row in donors_data
     ]
 
-    return render_template('date_details.html', masjid=masjid, date=date, donors=donors)
+    return render_template('date_details.html', masjid=masjid, date=date, donors=donors, search_query=search_query)
 
+@app.route('/admin-dashboard/<masjid>/export', methods=['GET'])
+def export_data(masjid):
+    # Ensure admin is logged in
+    if not session.get('admin_logged_in') or session.get('masjid') != masjid:
+        return redirect('/')
+
+    # Get the selected date from the request
+    date = request.args.get('date')
+    if not date:
+        return redirect(f'/admin-dashboard/{masjid}')
+
+    # Fetch donor details for the selected date
+    conn = sqlite3.connect("bookings.db")
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT name, phone, email, quantity, payment_method, payment_proof
+        FROM bookings
+        WHERE masjid = ? AND date = ?
+    ''', (masjid, date))
+    donors_data = cursor.fetchall()
+    conn.close()
+
+    # Generate CSV
+    output = []
+    output.append(['Name', 'Phone', 'Email', 'Slots Booked', 'Payment Method', 'Payment Proof'])
+    for row in donors_data:
+        output.append(list(row))
+
+    # Create CSV response
+    si = io.StringIO()
+    cw = csv.writer(si)
+    cw.writerows(output)
+    response = make_response(si.getvalue())
+    response.headers['Content-Disposition'] = f'attachment; filename=donors_{date}.csv'
+    response.headers['Content-Type'] = 'text/csv'
+    return response
 
 # Below code works, However does not display image of payment confirmation.
 # @app.route('/admin-dashboard/<masjid>', methods=['GET'])

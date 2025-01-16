@@ -8,7 +8,21 @@
 </head>
 <body>
     <div class="container">
-        <h1>Date Details - {{ date }}</h1>
+        <h1>Details for {{ date }}</h1>
+
+        <!-- Search Bar -->
+        <form method="GET" action="/admin-dashboard/{{ masjid }}/details">
+            <input type="hidden" name="date" value="{{ date }}">
+            <input type="text" name="search" placeholder="Search by name or email" value="{{ search_query }}">
+            <button type="submit">Search</button>
+        </form>
+        <br>
+
+        <!-- Export Button -->
+        <a href="/admin-dashboard/{{ masjid }}/export?date={{ date }}" class="button">Export Data</a>
+        <br><br>
+
+        <!-- Donor Details Table -->
         <table border="1">
             <thead>
                 <tr>
@@ -39,6 +53,8 @@
                 {% endfor %}
             </tbody>
         </table>
+
+        <br>
         <a href="/admin-dashboard/{{ masjid }}" class="button">Back to Dashboard</a>
     </div>
 </body>
