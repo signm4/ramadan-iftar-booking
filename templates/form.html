@@ -70,13 +70,13 @@
             }
         });
     </script>
+        <header class="header">
+            <!-- <img src="{{ url_for('static', filename='mainLogo.jpg') }}" alt="Masjid Logo" class="logo">
+            <h1>{{ masjid_name }}</h1> -->
+            <a href="/admin-login/{{ masjid }}" class="admin-login">Admin Login</a>
+        </header>
 </head>
 <body>
-    <header class="header">
-        <img src="{{ url_for('static', filename='mainLogo.jpg') }}" alt="Masjid Logo" class="logo">
-        <h1>{{ masjid_name }}</h1>
-        <a href="/admin-login/{{ masjid }}" class="admin-login">Admin Login</a>
-    </header>
     
     <div class="container">
         <header class="header">

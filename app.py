@@ -5,27 +5,57 @@ import os
 
 app = Flask(__name__, static_folder='static')
 
+# app.secret_key = os.urandom(24)
+
+app.secret_key = "secretkey"
+
+
+def init_db():
+    conn = sqlite3.connect("bookings.db")
+    cursor = conn.cursor()
+
+    # Create the bookings table with all required columns
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS bookings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT NOT NULL,
+            quantity INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            phone TEXT NOT NULL,
+            email TEXT NOT NULL,
+            masjid TEXT NOT NULL,
+            payment_method TEXT NOT NULL
+            payment_proof TEXT NOT NULL
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+# Call init_db() when the app starts
+init_db()
+
+
 # Configure upload folder
 UPLOAD_FOLDER = 'static/uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Initialize the database
-def init_db():
-    conn = sqlite3.connect('bookings.db')
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS bookings (
-        id INTEGER PRIMARY KEY,
-        date TEXT,
-        quantity INTEGER,
-        name TEXT,
-        phone TEXT,
-        email TEXT,
-        payment_method TEXT,
-        payment_proof TEXT
-    )''')
-    conn.commit()
-    conn.close()
+# # Initialize the database
+# def init_db():
+#     conn = sqlite3.connect('bookings.db')
+#     c = conn.cursor()
+#     c.execute('''CREATE TABLE IF NOT EXISTS bookings (
+#         id INTEGER PRIMARY KEY,
+#         date TEXT,
+#         quantity INTEGER,
+#         name TEXT,
+#         phone TEXT,
+#         email TEXT,
+#         payment_method TEXT,
+#         payment_proof TEXT
+#     )''')
+#     conn.commit()
+#     conn.close()
 
 # Check slots booked for a specific date
 def slots_booked(date):
@@ -116,10 +146,11 @@ def select_masjid():
 @app.route('/masjid/<masjid>')
 def masjid_form(masjid):
     # Check for specific masjid and render the corresponding form
-    if masjid == "MasjidBilal":
-        return render_template('form.html', masjid_name="Masjid Bilal (Kyle, TX)")
-    else:
-        return render_template('404.html'), 404
+    # if masjid == "MasjidBilal":
+    #     return render_template('form.html', masjid_name="Masjid Bilal (Kyle, TX)")
+    # else:
+    #     return render_template('404.html'), 404
+    return render_template('form.html', masjid=masjid)
 
 
 @app.route('/available-slots', methods=['GET'])
