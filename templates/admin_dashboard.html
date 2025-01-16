@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - {{ masjid }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Admin Dashboard - {{ masjid }}</h1>
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Slots Filled</th>
+                    <th>Slots Left</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for slot in slots %}
+                <tr>
+                    <td>{{ slot.date }}</td>
+                    <td>{{ slot.slots_filled }}</td>
+                    <td>{{ slot.slots_left }}</td>
+                    <td>
+                        <a href="/slot-details/{{ masjid }}?date={{ slot.date }}" class="button">View Details</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <a href="/" class="button">Log Out</a>
+    </div>
+</body>
+</html>

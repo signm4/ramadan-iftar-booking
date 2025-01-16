@@ -237,4 +237,20 @@ body {
     font-size: 14px;
 }
 
+.admin-login {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background-color: #007bff;
+    color: white;
+    padding: 10px 15px;
+    border-radius: 5px;
+    text-decoration: none;
+    font-size: 14px;
+    transition: background-color 0.3s;
+}
+
+.admin-login:hover {
+    background-color: #0056b3;
+}
 

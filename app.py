@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, jsonify, redirect, url_for
+from flask import Flask, request, render_template, jsonify, redirect, url_for, session
 import sqlite3
 from datetime import datetime
 import os
@@ -39,6 +39,71 @@ def slots_booked(date):
 @app.route('/')
 def home():
     return render_template('home.html')
+
+# Dummy credentials (replace with database or secure method)
+ADMIN_CREDENTIALS = {
+    "MasjidBilal": {"username": "admin", "password": "password123"}
+}
+
+@app.route('/admin-login/<masjid>', methods=['GET', 'POST'])
+def admin_login(masjid):
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+
+        # Check credentials
+        if ADMIN_CREDENTIALS.get(masjid) and \
+           username == ADMIN_CREDENTIALS[masjid]['username'] and \
+           password == ADMIN_CREDENTIALS[masjid]['password']:
+            # Set session for the admin
+            session['masjid'] = masjid
+            session['admin_logged_in'] = True
+            return redirect(f'/admin-dashboard/{masjid}')
+        else:
+            return render_template('admin_login.html', masjid=masjid, error="Invalid credentials")
+
+    return render_template('admin_login.html', masjid=masjid)
+
+@app.route('/admin-dashboard/<masjid>', methods=['GET'])
+def admin_dashboard(masjid):
+    # Ensure the admin is logged in
+    if not session.get('admin_logged_in') or session.get('masjid') != masjid:
+        return redirect('/')
+
+    # Fetch slot data for the masjid
+    conn = sqlite3.connect("bookings.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT date, SUM(quantity), 8 - SUM(quantity) AS slots_left FROM bookings WHERE masjid = ? GROUP BY date", (masjid,))
+    slots_data = cursor.fetchall()
+    conn.close()
+
+    # Format data for the template
+    slots = [{"date": row[0], "slots_filled": row[1], "slots_left": row[2]} for row in slots_data]
+
+    return render_template('admin_dashboard.html', masjid=masjid, slots=slots)
+
+@app.route('/slot-details/<masjid>', methods=['GET'])
+def slot_details(masjid):
+    # Ensure the admin is logged in
+    if not session.get('admin_logged_in') or session.get('masjid') != masjid:
+        return redirect('/')
+
+    date = request.args.get('date')
+    if not date:
+        return redirect(f'/admin-dashboard/{masjid}')
+
+    # Fetch donor details for the selected date
+    conn = sqlite3.connect("bookings.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT name, phone, email, quantity FROM bookings WHERE masjid = ? AND date = ?", (masjid, date))
+    donor_data = cursor.fetchall()
+    conn.close()
+
+    # Format data for the template
+    donors = [{"name": row[0], "phone": row[1], "email": row[2], "quantity": row[3]} for row in donor_data]
+
+    return render_template('slot_details.html', masjid=masjid, date=date, donors=donors)
+
 
 @app.route('/select-masjid', methods=['GET'])
 def select_masjid():

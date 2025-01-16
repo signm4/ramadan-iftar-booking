@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slot Details - {{ masjid }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Slot Details - {{ masjid }}</h1>
+        <h2>Date: {{ date }}</h2>
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>Donor Name</th>
+                    <th>Phone</th>
+                    <th>Email</th>
+                    <th>Slots Booked</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for donor in donors %}
+                <tr>
+                    <td>{{ donor.name }}</td>
+                    <td>{{ donor.phone }}</td>
+                    <td>{{ donor.email }}</td>
+                    <td>{{ donor.quantity }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <a href="/admin-dashboard/{{ masjid }}" class="button">Back to Dashboard</a>
+    </div>
+</body>
+</html>
