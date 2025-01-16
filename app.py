@@ -1,7 +1,8 @@
 from flask import Flask, request, render_template, jsonify, redirect, url_for, session, make_response
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 import os, csv, io
+import zipfile
 
 app = Flask(__name__, static_folder='static')
 
@@ -202,6 +203,79 @@ def export_data(masjid):
     response.headers['Content-Disposition'] = f'attachment; filename=donors_{date}.csv'
     response.headers['Content-Type'] = 'text/csv'
     return response
+
+@app.route('/admin-dashboard/<masjid>/export-all', methods=['GET'])
+def export_all_data(masjid):
+    # Ensure admin is logged in
+    if not session.get('admin_logged_in') or session.get('masjid') != masjid:
+        return redirect('/')
+
+    # Initialize date range
+    start_date = datetime(2025, 2, 28)
+    end_date = datetime(2025, 3, 29)
+    date_range = [(start_date + timedelta(days=i)).strftime('%Y-%m-%d') for i in range((end_date - start_date).days + 1)]
+    
+    conn = sqlite3.connect("bookings.db")
+    cursor = conn.cursor()
+
+    # Fetch all booking data
+    cursor.execute('''
+        SELECT date, SUM(quantity) AS slots_filled, SUM(quantity * 250) AS total_donated
+        FROM bookings
+        WHERE masjid = ?
+        GROUP BY date
+    ''', (masjid,))
+    summary_data = cursor.fetchall()
+
+    # Fetch all donor details
+    cursor.execute('''
+        SELECT date, name, phone, email, quantity, (quantity * 250) AS amount_donated
+        FROM bookings
+        WHERE masjid = ?
+    ''', (masjid,))
+    detailed_data = cursor.fetchall()
+
+    conn.close()
+
+    # Prepare summary data (fill missing dates)
+    summary = []
+    for date in date_range:
+        filled_data = next((row for row in summary_data if row[0] == date), None)
+        slots_filled = filled_data[1] if filled_data else 0
+        total_donated = filled_data[2] if filled_data else 0
+        slots_left = 8 - slots_filled
+        summary.append([date, slots_filled, slots_left, total_donated])
+
+    # Prepare detailed data
+    detailed = [['Date', 'Name', 'Phone', 'Email', 'Slots Booked', 'Amount Donated']]
+    detailed.extend(detailed_data)
+
+    # Generate CSV for summary
+    summary_file = io.StringIO()
+    summary_writer = csv.writer(summary_file)
+    summary_writer.writerow(['Date', 'Slots Filled', 'Slots Left', 'Total Donated'])
+    summary_writer.writerows(summary)
+
+    # Generate CSV for detailed data
+    detailed_file = io.StringIO()
+    detailed_writer = csv.writer(detailed_file)
+    detailed_writer.writerows(detailed)
+
+    # Create a response with both files as attachments
+    response = make_response()
+    response.headers['Content-Type'] = 'application/zip'
+    response.headers['Content-Disposition'] = 'attachment; filename=exported_data.zip'
+
+    # Create a zip file with both CSVs
+    with io.BytesIO() as zip_buffer:
+        with zipfile.ZipFile(zip_buffer, 'w') as zf:
+            zf.writestr('summary.csv', summary_file.getvalue())
+            zf.writestr('detailed.csv', detailed_file.getvalue())
+        zip_buffer.seek(0)
+        response.data = zip_buffer.read()
+
+    return response
+
 
 # Below code works, However does not display image of payment confirmation.
 # @app.route('/admin-dashboard/<masjid>', methods=['GET'])
