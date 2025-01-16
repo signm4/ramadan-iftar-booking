@@ -96,21 +96,83 @@ def admin_login(masjid):
 
 @app.route('/admin-dashboard/<masjid>', methods=['GET'])
 def admin_dashboard(masjid):
-    # Ensure the admin is logged in
+    # Ensure admin is logged in
     if not session.get('admin_logged_in') or session.get('masjid') != masjid:
         return redirect('/')
 
-    # Fetch slot data for the masjid
+    # Fetch data: slots filled for each date
     conn = sqlite3.connect("bookings.db")
     cursor = conn.cursor()
-    cursor.execute("SELECT date, SUM(quantity), 8 - SUM(quantity) AS slots_left FROM bookings WHERE masjid = ? GROUP BY date", (masjid,))
-    slots_data = cursor.fetchall()
+    cursor.execute('''
+        SELECT date, SUM(quantity) AS slots_filled
+        FROM bookings
+        WHERE masjid = ?
+        GROUP BY date
+    ''', (masjid,))
+    dates_data = cursor.fetchall()
     conn.close()
 
-    # Format data for the template
-    slots = [{"date": row[0], "slots_filled": row[1], "slots_left": row[2]} for row in slots_data]
+    # Format the data for the template
+    dates = [{"date": row[0], "slots_filled": row[1]} for row in dates_data]
 
-    return render_template('admin_dashboard.html', masjid=masjid, slots=slots)
+    return render_template('admin_dashboard.html', masjid=masjid, dates=dates)
+
+@app.route('/admin-dashboard/<masjid>/details', methods=['GET'])
+def date_details(masjid):
+    # Ensure admin is logged in
+    if not session.get('admin_logged_in') or session.get('masjid') != masjid:
+        return redirect('/')
+
+    # Get the selected date from the query parameters
+    date = request.args.get('date')
+    if not date:
+        return redirect(f'/admin-dashboard/{masjid}')
+
+    # Fetch donor details for the selected date
+    conn = sqlite3.connect("bookings.db")
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT name, phone, email, quantity, payment_method, payment_proof
+        FROM bookings
+        WHERE masjid = ? AND date = ?
+    ''', (masjid, date))
+    donors_data = cursor.fetchall()
+    conn.close()
+
+    # Format the data for the template
+    donors = [
+        {
+            "name": row[0],
+            "phone": row[1],
+            "email": row[2],
+            "quantity": row[3],
+            "payment_method": row[4],
+            "payment_proof": row[5]
+        }
+        for row in donors_data
+    ]
+
+    return render_template('date_details.html', masjid=masjid, date=date, donors=donors)
+
+
+# Below code works, However does not display image of payment confirmation.
+# @app.route('/admin-dashboard/<masjid>', methods=['GET'])
+# def admin_dashboard(masjid):
+#     # Ensure the admin is logged in
+#     if not session.get('admin_logged_in') or session.get('masjid') != masjid:
+#         return redirect('/')
+
+#     # Fetch slot data for the masjid
+#     conn = sqlite3.connect("bookings.db")
+#     cursor = conn.cursor()
+#     cursor.execute("SELECT date, SUM(quantity), 8 - SUM(quantity) AS slots_left FROM bookings WHERE masjid = ? GROUP BY date", (masjid,))
+#     slots_data = cursor.fetchall()
+#     conn.close()
+
+#     # Format data for the template
+#     slots = [{"date": row[0], "slots_filled": row[1], "slots_left": row[2]} for row in slots_data]
+
+#     return render_template('admin_dashboard.html', masjid=masjid, slots=slots)
 
 @app.route('/slot-details/<masjid>', methods=['GET'])
 def slot_details(masjid):

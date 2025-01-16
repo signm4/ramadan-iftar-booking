@@ -14,18 +14,16 @@
                 <tr>
                     <th>Date</th>
                     <th>Slots Filled</th>
-                    <th>Slots Left</th>
                     <th>Details</th>
                 </tr>
             </thead>
             <tbody>
-                {% for slot in slots %}
+                {% for date in dates %}
                 <tr>
-                    <td>{{ slot.date }}</td>
-                    <td>{{ slot.slots_filled }}</td>
-                    <td>{{ slot.slots_left }}</td>
+                    <td>{{ date.date }}</td>
+                    <td>{{ date.slots_filled }}</td>
                     <td>
-                        <a href="/slot-details/{{ masjid }}?date={{ slot.date }}" class="button">View Details</a>
+                        <a href="/admin-dashboard/{{ masjid }}/details?date={{ date.date }}" class="button">View Details</a>
                     </td>
                 </tr>
                 {% endfor %}
