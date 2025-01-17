@@ -9,27 +9,39 @@
 <body>
     <div class="container">
         <h1>Admin Dashboard - {{ masjid }}</h1>
+
+        <!-- Export All Data -->
+        <a href="/admin-dashboard/{{ masjid }}/export-all" class="button">Export All Data</a>
+        <br><br>
+
+        <!-- Date Summary Table -->
         <table border="1">
             <thead>
                 <tr>
                     <th>Date</th>
                     <th>Slots Filled</th>
-                    <th>Details</th>
+                    <th>Slots Remaining</th>
+                    <th>Total Donated</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
-                {% for date in dates %}
+                {% for summary in date_summary %}
                 <tr>
-                    <td>{{ date.date }}</td>
-                    <td>{{ date.slots_filled }}</td>
+                    <td>{{ summary.date }}</td>
+                    <td>{{ summary.slots_filled }}</td>
+                    <td>{{ summary.slots_remaining }}</td>
+                    <td>${{ summary.total_donated }}</td>
                     <td>
-                        <a href="/admin-dashboard/{{ masjid }}/details?date={{ date.date }}" class="button">View Details</a>
+                        <a href="/admin-dashboard/{{ masjid }}/details?date={{ summary.date }}" class="button">View Details</a>
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
-        <a href="/" class="button">Log Out</a>
+
+        <br>
+        <a href="/admin-logout" class="button">Logout</a>
     </div>
 </body>
 </html>

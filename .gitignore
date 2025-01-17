@@ -1,0 +1,12 @@
+# Python
+*.pyc
+__pycache__/
+
+# Firebase
+.env
+secrets_bookiftar.json
+/Users/AbdurRafay/Documents/Scheduler/ramadan-iftar-booking/secrets_bookiftar.json
+olddb2.txt
+# IDE files
+.vscode/
+.idea/

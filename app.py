@@ -1,13 +1,25 @@
 from flask import Flask, request, render_template, jsonify, redirect, url_for, session, make_response
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 import os, csv, io
+import zipfile
+from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
+from dotenv import load_dotenv
 
+load_dotenv()
 app = Flask(__name__, static_folder='static')
 
 # app.secret_key = os.urandom(24)
 
-app.secret_key = "secretkey"
+app.secret_key = os.getenv('SECRET_KEY', 'default_secret_key')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///bookings.db')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db = SQLAlchemy(app)
+
+ADMIN_USERNAME = 'admin'
+ADMIN_PASSWORD_HASH = generate_password_hash('password123', method="pbkdf2:sha256")  # Replace with your actual password
 
 
 def init_db():
@@ -74,84 +86,96 @@ def home():
 ADMIN_CREDENTIALS = {
     "MasjidBilal": {"username": "admin", "password": "password123"}
 }
-
+# Login route
 @app.route('/admin-login/<masjid>', methods=['GET', 'POST'])
 def admin_login(masjid):
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
+        username = request.form['username']
+        password = request.form['password']
 
-        # Check credentials
-        if ADMIN_CREDENTIALS.get(masjid) and \
-           username == ADMIN_CREDENTIALS[masjid]['username'] and \
-           password == ADMIN_CREDENTIALS[masjid]['password']:
-            # Set session for the admin
-            session['masjid'] = masjid
+        # Validate username and password (replace with dynamic validation if needed)
+        if username == ADMIN_USERNAME and check_password_hash(ADMIN_PASSWORD_HASH, password):
             session['admin_logged_in'] = True
+            session['masjid'] = masjid  # Store the masjid in the session
             return redirect(f'/admin-dashboard/{masjid}')
         else:
             return render_template('admin_login.html', masjid=masjid, error="Invalid credentials")
 
     return render_template('admin_login.html', masjid=masjid)
 
+
+
+# Admin logout route
+@app.route('/admin-logout')
+def admin_logout():
+    session.clear()
+    return redirect('/')
+
+
+from datetime import datetime, timedelta
+
 @app.route('/admin-dashboard/<masjid>', methods=['GET'])
 def admin_dashboard(masjid):
-    # Ensure admin is logged in
     if not session.get('admin_logged_in') or session.get('masjid') != masjid:
-        return redirect('/')
+        return redirect(f'/admin-login/{masjid}')
 
-    # Fetch data: slots filled for each date
+    # Define the date range
+    start_date = datetime(2025, 2, 28)
+    end_date = datetime(2025, 3, 29)
+    date_range = [(start_date + timedelta(days=i)).strftime('%Y-%m-%d') for i in range((end_date - start_date).days + 1)]
+
+    # Fetch booking data from the database
     conn = sqlite3.connect("bookings.db")
     cursor = conn.cursor()
     cursor.execute('''
-        SELECT date, SUM(quantity) AS slots_filled
+        SELECT date, SUM(quantity) AS slots_filled, SUM(quantity * 250) AS total_donated
         FROM bookings
         WHERE masjid = ?
         GROUP BY date
     ''', (masjid,))
-    dates_data = cursor.fetchall()
+    booking_data = cursor.fetchall()
     conn.close()
 
-    # Format the data for the template
-    dates = [{"date": row[0], "slots_filled": row[1]} for row in dates_data]
+    # Create a summary for each date
+    date_summary = []
+    for date in date_range:
+        data = next((row for row in booking_data if row[0] == date), None)
+        slots_filled = data[1] if data else 0
+        total_donated = data[2] if data else 0
+        slots_remaining = 8 - slots_filled
+        date_summary.append({
+            "date": date,
+            "slots_filled": slots_filled,
+            "slots_remaining": slots_remaining,
+            "total_donated": total_donated
+        })
 
-    return render_template('admin_dashboard.html', masjid=masjid, dates=dates)
+    return render_template('admin_dashboard.html', masjid=masjid, date_summary=date_summary)
+
 
 
 @app.route('/admin-dashboard/<masjid>/details', methods=['GET'])
 def date_details(masjid):
-    # Ensure admin is logged in
     if not session.get('admin_logged_in') or session.get('masjid') != masjid:
-        return redirect('/')
+        return redirect(f'/admin-login/{masjid}')
 
-    # Get the selected date and search query from the request
+    # Get the date from query parameters
     date = request.args.get('date')
-    search_query = request.args.get('search', '').strip().lower()  # Search query
-
     if not date:
         return redirect(f'/admin-dashboard/{masjid}')
 
     # Fetch donor details for the selected date
     conn = sqlite3.connect("bookings.db")
     cursor = conn.cursor()
-    if search_query:
-        # Search by name or email
-        cursor.execute('''
-            SELECT name, phone, email, quantity, payment_method, payment_proof
-            FROM bookings
-            WHERE masjid = ? AND date = ? AND (LOWER(name) LIKE ? OR LOWER(email) LIKE ?)
-        ''', (masjid, date, f"%{search_query}%", f"%{search_query}%"))
-    else:
-        # Fetch all donors for the date
-        cursor.execute('''
-            SELECT name, phone, email, quantity, payment_method, payment_proof
-            FROM bookings
-            WHERE masjid = ? AND date = ?
-        ''', (masjid, date))
-    donors_data = cursor.fetchall()
+    cursor.execute('''
+        SELECT name, phone, email, quantity, payment_method, payment_proof
+        FROM bookings
+        WHERE masjid = ? AND date = ?
+    ''', (masjid, date))
+    donor_data = cursor.fetchall()
     conn.close()
 
-    # Format the data for the template
+    # Format donor details
     donors = [
         {
             "name": row[0],
@@ -161,10 +185,11 @@ def date_details(masjid):
             "payment_method": row[4],
             "payment_proof": row[5]
         }
-        for row in donors_data
+        for row in donor_data
     ]
 
-    return render_template('date_details.html', masjid=masjid, date=date, donors=donors, search_query=search_query)
+    return render_template('date_details.html', masjid=masjid, date=date, donors=donors)
+
 
 @app.route('/admin-dashboard/<masjid>/export', methods=['GET'])
 def export_data(masjid):
@@ -202,6 +227,79 @@ def export_data(masjid):
     response.headers['Content-Disposition'] = f'attachment; filename=donors_{date}.csv'
     response.headers['Content-Type'] = 'text/csv'
     return response
+
+@app.route('/admin-dashboard/<masjid>/export-all', methods=['GET'])
+def export_all_data(masjid):
+    # Ensure admin is logged in
+    if not session.get('admin_logged_in') or session.get('masjid') != masjid:
+        return redirect('/')
+
+    # Initialize date range
+    start_date = datetime(2025, 2, 28)
+    end_date = datetime(2025, 3, 29)
+    date_range = [(start_date + timedelta(days=i)).strftime('%Y-%m-%d') for i in range((end_date - start_date).days + 1)]
+    
+    conn = sqlite3.connect("bookings.db")
+    cursor = conn.cursor()
+
+    # Fetch all booking data
+    cursor.execute('''
+        SELECT date, SUM(quantity) AS slots_filled, SUM(quantity * 250) AS total_donated
+        FROM bookings
+        WHERE masjid = ?
+        GROUP BY date
+    ''', (masjid,))
+    summary_data = cursor.fetchall()
+
+    # Fetch all donor details
+    cursor.execute('''
+        SELECT date, name, phone, email, quantity, (quantity * 250) AS amount_donated
+        FROM bookings
+        WHERE masjid = ?
+    ''', (masjid,))
+    detailed_data = cursor.fetchall()
+
+    conn.close()
+
+    # Prepare summary data (fill missing dates)
+    summary = []
+    for date in date_range:
+        filled_data = next((row for row in summary_data if row[0] == date), None)
+        slots_filled = filled_data[1] if filled_data else 0
+        total_donated = filled_data[2] if filled_data else 0
+        slots_left = 8 - slots_filled
+        summary.append([date, slots_filled, slots_left, total_donated])
+
+    # Prepare detailed data
+    detailed = [['Date', 'Name', 'Phone', 'Email', 'Slots Booked', 'Amount Donated']]
+    detailed.extend(detailed_data)
+
+    # Generate CSV for summary
+    summary_file = io.StringIO()
+    summary_writer = csv.writer(summary_file)
+    summary_writer.writerow(['Date', 'Slots Filled', 'Slots Left', 'Total Donated'])
+    summary_writer.writerows(summary)
+
+    # Generate CSV for detailed data
+    detailed_file = io.StringIO()
+    detailed_writer = csv.writer(detailed_file)
+    detailed_writer.writerows(detailed)
+
+    # Create a response with both files as attachments
+    response = make_response()
+    response.headers['Content-Type'] = 'application/zip'
+    response.headers['Content-Disposition'] = 'attachment; filename=exported_data.zip'
+
+    # Create a zip file with both CSVs
+    with io.BytesIO() as zip_buffer:
+        with zipfile.ZipFile(zip_buffer, 'w') as zf:
+            zf.writestr('summary.csv', summary_file.getvalue())
+            zf.writestr('detailed.csv', detailed_file.getvalue())
+        zip_buffer.seek(0)
+        response.data = zip_buffer.read()
+
+    return response
+
 
 # Below code works, However does not display image of payment confirmation.
 # @app.route('/admin-dashboard/<masjid>', methods=['GET'])
