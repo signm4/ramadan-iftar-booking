@@ -3,12 +3,23 @@ import sqlite3
 from datetime import datetime, timedelta
 import os, csv, io
 import zipfile
+from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
+from dotenv import load_dotenv
 
+load_dotenv()
 app = Flask(__name__, static_folder='static')
 
 # app.secret_key = os.urandom(24)
 
-app.secret_key = "secretkey"
+app.secret_key = os.getenv('SECRET_KEY', 'default_secret_key')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///bookings.db')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db = SQLAlchemy(app)
+
+ADMIN_USERNAME = 'admin'
+ADMIN_PASSWORD_HASH = generate_password_hash('your_secure_password', method="pbkdf2:sha256")  # Replace with your actual password
 
 
 def init_db():
@@ -75,32 +86,39 @@ def home():
 ADMIN_CREDENTIALS = {
     "MasjidBilal": {"username": "admin", "password": "password123"}
 }
-
+# Login route
 @app.route('/admin-login/<masjid>', methods=['GET', 'POST'])
 def admin_login(masjid):
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
+        username = request.form['username']
+        password = request.form['password']
 
-        # Check credentials
-        if ADMIN_CREDENTIALS.get(masjid) and \
-           username == ADMIN_CREDENTIALS[masjid]['username'] and \
-           password == ADMIN_CREDENTIALS[masjid]['password']:
-            # Set session for the admin
-            session['masjid'] = masjid
+        # Validate username and password (replace with dynamic validation if needed)
+        if username == ADMIN_USERNAME and check_password_hash(ADMIN_PASSWORD_HASH, password):
             session['admin_logged_in'] = True
+            session['masjid'] = masjid  # Store the masjid in the session
             return redirect(f'/admin-dashboard/{masjid}')
         else:
             return render_template('admin_login.html', masjid=masjid, error="Invalid credentials")
 
     return render_template('admin_login.html', masjid=masjid)
 
+
+
+# Admin logout route
+@app.route('/admin-logout')
+def admin_logout():
+    session.clear()
+    return redirect('/')
+
+
 @app.route('/admin-dashboard/<masjid>', methods=['GET'])
 def admin_dashboard(masjid):
     # Ensure admin is logged in
     if not session.get('admin_logged_in') or session.get('masjid') != masjid:
-        return redirect('/')
+        return redirect('/admin-login')
 
+    session['masjid'] = masjid
     # Fetch data: slots filled for each date
     conn = sqlite3.connect("bookings.db")
     cursor = conn.cursor()
