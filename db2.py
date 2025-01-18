@@ -23,7 +23,7 @@ data = ref.get()
 print("Data from Firebase:", data)
 
 # User input
-ag = input("age: ")
+# ag = input("age: ")
 name_input = input("name: ")
 project_input = input("Masjid: ")
 
@@ -31,7 +31,7 @@ project_input = input("Masjid: ")
 masjids_ref = db.reference('masjids')
 
 # Add a masjid
-masjid_name = "MasjidBilal"
+masjid_name = project_input
 masjid_ref = masjids_ref.child(masjid_name)
 
 # Add a year
@@ -48,7 +48,6 @@ slot_data = {
     "donorName": name_input,
     "phone": "1234567890",  # Replace with a dynamic input if needed
     "email": "johndoe@example.com",  # Replace with a dynamic input if needed
-    "quantity": ag,
     "paymentMethod": "Credit Card",  # Replace with a dynamic input if needed
     "paymentProof": "proof_image_url"
 }
