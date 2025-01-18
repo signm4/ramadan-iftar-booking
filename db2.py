@@ -22,16 +22,48 @@ ref = db.reference('/')
 data = ref.get()
 print("Data from Firebase:", data)
 
+# User input
 ag = input("age: ")
 name_input = input("name: ")
 project_input = input("Masjid: ")
 
-# Optional: Write some data to test
-ref.set({
-    'name': name_input,
-    'project': project_input,
-    'age': ag
-})
+# Reference to the masjids node
+masjids_ref = db.reference('masjids')
+
+# Add a masjid
+masjid_name = "MasjidBilal"
+masjid_ref = masjids_ref.child(masjid_name)
+
+# Add a year
+year = "2025"
+year_ref = masjid_ref.child('years').child(year)
+
+# Add a date
+date = "01-17"
+date_ref = year_ref.child('dates').child(date)
+
+# Add a slot
+slot_id = "slot1"
+slot_data = {
+    "donorName": name_input,
+    "phone": "1234567890",  # Replace with a dynamic input if needed
+    "email": "johndoe@example.com",  # Replace with a dynamic input if needed
+    "quantity": ag,
+    "paymentMethod": "Credit Card",  # Replace with a dynamic input if needed
+    "paymentProof": "proof_image_url"
+}
+
+# Retrieve all masjids
+all_masjids = masjids_ref.get()
+print("All Masjids:", all_masjids)
+
+# Retrieve specific masjid data
+masjid_data = masjids_ref.child(masjid_name).get()
+print(f"Data for {masjid_name}:", masjid_data)
+
+# Write the slot data
+date_ref.child('slots').child(slot_id).set(slot_data)
+print(f"Slot {slot_id} added successfully!")
 
 # After update
 data = ref.get()
