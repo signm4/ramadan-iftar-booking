@@ -82,9 +82,14 @@ def available_slots(masjid):
         return jsonify({"status": "error", "message": "Date is required."})
 
     year = date.split('-')[0]
-    available_slots = get_slot_availability(masjid, year, date)
+    ref = db.reference(f'bookings/{masjid}/{year}/{date}')
+    data = ref.get()
 
-    return jsonify({"status": "success", "available_slots": available_slots})
+    if not data:
+        return jsonify({"status": "success", "available_slots": 8})  # Default to 8 slots for a new date
+
+    return jsonify({"status": "success", "available_slots": data.get('slots_remaining', 8)})
+
 
 
 # @app.route('/book', methods=['POST'])
@@ -138,14 +143,14 @@ def book(masjid):
         payment_proof.save(proof_path)
         proof_url = f"/static/uploads/{proof_filename}"
 
-    # Get reference for the date
+    # Get Firebase reference for the date
     ref = db.reference(f'bookings/{masjid}/{year}/{date}')
     data = ref.get()
 
     # Initialize data if date doesn't exist
     if not data:
         data = {
-            "slots": {},
+            "slots": {},  # Initialize slots node
             "slots_filled": 0,
             "slots_remaining": 8
         }
@@ -157,7 +162,7 @@ def book(masjid):
     # Update slot details
     next_slot = data["slots_filled"] + 1
     for i in range(next_slot, next_slot + quantity):
-        data["slots"][str(i)] = {
+        data["slots"][str(i)] = {  # Store donor details in slots
             "name": name,
             "phone": phone,
             "email": email,
@@ -169,10 +174,11 @@ def book(masjid):
     data["slots_filled"] += quantity
     data["slots_remaining"] -= quantity
 
-    # Save back to Firebase
+    # Save updated data back to Firebase
     ref.set(data)
 
     return redirect('/thank-you')
+
 
 
 @app.route('/thank-you')
