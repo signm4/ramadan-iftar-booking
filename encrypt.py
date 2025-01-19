@@ -48,8 +48,17 @@ if is_admin == 'yes':
     if not admin_data:
         # New admin setup
         print("Admin not found. Setting up a new admin account.")
-        admin_password = generate_random_password()
-        print(f"Generated admin password: {admin_password}")
+        while True:
+            custom_or_random = input("Do you want to set a custom password or generate one? (custom/random): ").strip().lower()
+            if custom_or_random in ('custom', 'random'):
+                break
+            print("Invalid choice. Please enter 'custom' or 'random'.")
+
+        if custom_or_random == 'custom':
+            admin_password = input("Enter your custom password: ")
+        else:
+            admin_password = generate_random_password()
+            print(f"Generated admin password: {admin_password}")
 
         hashed_password = hash_password(admin_password)
         admins_ref.child(str(uuid.uuid4())).set({
@@ -90,7 +99,7 @@ else:
     email = input("Enter email: ")
     payment_method = input("Enter payment method (e.g., Credit Card): ")
     payment_proof = input("Enter payment proof (URL or text): ")
-    quantity = input("Enter quantity: ")
+    slotsN = input("Enter How many slots you want to donate for 1-8: ")
 
     slot_id = str(uuid.uuid4())
     slot_data = {
@@ -99,7 +108,7 @@ else:
         "email": email,
         "paymentMethod": payment_method,
         "paymentProof": payment_proof,
-        "quantity": quantity
+        "slots": slotsN
     }
     date_ref.child('slots').child(slot_id).set(slot_data)
 
