@@ -30,7 +30,8 @@ db_sql = SQLAlchemy(app)
 
 # Admin credentials
 ADMIN_USERNAME = 'admin'
-ADMIN_PASSWORD_HASH = generate_password_hash('password123', method="pbkdf2:sha256")  # Replace with your actual password
+admin_pass = os.getenv('ADMIN_PASS')
+ADMIN_PASSWORD_HASH = generate_password_hash(admin_pass, method="pbkdf2:sha256")  # Replace with your actual password
 
 # Ensure upload directory exists
 UPLOAD_FOLDER = 'static/uploads'
@@ -109,6 +110,7 @@ def available_slots(masjid):
 from firebase_admin import storage
 import uuid
 
+PRICE_PER_SLOT = 250
 @app.route('/book/<masjid>', methods=['POST'])
 def book(masjid):
     date = request.form['date']
@@ -180,7 +182,8 @@ def book(masjid):
     # Save updated data back to Firebase
     ref.set(data)
 
-    return redirect('/thank-you')
+    # return redirect('/thank-you')
+    return render_template('booking_success.html', masjid=masjid, total_amount=total_amount)
 
 
 @app.route('/thank-you')
@@ -284,3 +287,4 @@ def allowed_dates(masjid):
 
 if __name__ == '__main__':
     app.run(debug=True)
+

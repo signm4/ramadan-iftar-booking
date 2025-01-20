@@ -39,7 +39,9 @@
             <select id="quantity" name="quantity" required>
                 <option value="" disabled selected>Select Slots</option>
             </select>
-            <div id="total-amount" class="total-amount">Total Amount Due: </div>
+            <!-- <div id="total-amount" class="total-amount">Total Amount Due: </div> -->
+            <div id="total-amount" class="total-amount">Total Amount Due: $0</div>
+
 
             <label for="name">Your Name:</label>
             <input type="text" id="name" name="name" required>
@@ -65,6 +67,17 @@
         document.getElementById('date').addEventListener('change', function() {
             const date = this.value;
             const masjid = "{{ masjid }}"; // Pass the masjid dynamically from Flask
+            const PRICE_PER_SLOT = 250; // Define the price per slot
+
+            document.getElementById('quantity').addEventListener('change', function() {
+                const quantity = parseInt(this.value, 10);
+                const totalAmountDiv = document.getElementById('total-amount');
+
+                if (!isNaN(quantity)) {
+                    const totalAmount = quantity * PRICE_PER_SLOT;
+                    totalAmountDiv.textContent = `Total Amount Due: $${totalAmount}`;
+                }
+            });
 
             fetch(`/available-slots/${masjid}?date=${date}`)
                 .then(response => response.json())
