@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Donor Details - {{ masjid }} - {{ date }}</title>
+    <title>Slot Details - {{ masjid }} - {{ date }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-    <h1>Donor Details for {{ masjid }} on {{ date }}</h1>
+    <h1>Slot Details for {{ masjid }} on {{ date }}</h1>
     <table>
         <thead>
             <tr>
@@ -16,18 +16,28 @@
                 <th>Phone</th>
                 <th>Email</th>
                 <th>Payment Method</th>
-                <th>Amount</th>
+                <th>Payment Proof</th>
             </tr>
         </thead>
         <tbody>
-            {% for donor in donors %}
+            {% for slot in slots %}
             <tr>
-                <td>{{ loop.index }}</td>
-                <td>{{ donor.name }}</td>
-                <td>{{ donor.phone }}</td>
-                <td>{{ donor.email }}</td>
-                <td>{{ donor.payment_method }}</td>
-                <td>${{ donor.amount }}</td>
+                <td>{{ slot.slot }}</td>
+                <td>{{ slot.name }}</td>
+                <td>{{ slot.phone }}</td>
+                <td>{{ slot.email }}</td>
+                <td>{{ slot.payment_method }}</td>
+                <td>
+                    {% if slot.payment_proof %}
+                        <a href="{{ slot.payment_proof }}" target="_blank">View Proof</a>
+                    {% else %}
+                        No Proof Uploaded
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6">No slots booked for this date.</td>
             </tr>
             {% endfor %}
         </tbody>

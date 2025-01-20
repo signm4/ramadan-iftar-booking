@@ -1,0 +1,61 @@
+import firebase_admin
+from firebase_admin import credentials, db
+import os
+from dotenv import load_dotenv
+from datetime import datetime, timedelta
+
+# Load environment variables
+load_dotenv()
+
+# Validate CERT_URL and initialize Firebase
+cert_url = os.getenv('CERT_URL')
+if not cert_url:
+    raise ValueError("CERT_URL environment variable is not set. Ensure your .env file is correctly configured.")
+
+# Initialize Firebase Admin SDK
+cred = credentials.Certificate(cert_url)
+firebase_admin.initialize_app(cred, {
+    'databaseURL': 'https://bookiftar2025-default-rtdb.firebaseio.com/'  # Replace with your database URL
+})
+
+# Define date range (Friday-Sunday only)
+start_date = datetime(2025, 2, 28)
+end_date = datetime(2025, 3, 29)
+
+def get_weekend_dates(start_date, end_date):
+    """Returns a list of dates between start_date and end_date that are Friday, Saturday, or Sunday."""
+    dates = []
+    current_date = start_date
+    while current_date <= end_date:
+        if current_date.weekday() in [4, 5, 6]:  # Friday, Saturday, Sunday
+            dates.append(current_date.strftime('%Y-%m-%d'))
+        current_date += timedelta(days=1)
+    return dates
+
+# Masjid-specific data
+masjids = {
+    "MasjidBilal": {
+        "2025": get_weekend_dates(start_date, end_date)
+    }
+}
+
+def initialize_slots():
+    """Returns a dictionary of 8 initialized slots."""
+    return {str(i): None for i in range(1, 9)}
+
+# Initialize Firebase with data
+def initialize_firebase():
+    for masjid_name, years in masjids.items():
+        for year, dates in years.items():
+            for date in dates:
+                ref = db.reference(f'bookings/{masjid_name}/{year}/{date}')
+                ref.set({
+                    "slots": initialize_slots(),
+                    "slots_filled": 0,
+                    "slots_remaining": 8
+                })
+                print(f"Initialized: {masjid_name} - {year} - {date}")
+
+if __name__ == "__main__":
+    initialize_firebase()
+    print("Firebase Masjid Bilal initialized successfully!")

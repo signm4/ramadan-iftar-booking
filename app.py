@@ -16,7 +16,8 @@ load_dotenv()
 cert_url = os.getenv('CERT_URL')
 cred = credentials.Certificate(cert_url)  # Replace with your JSON file path
 firebase_admin.initialize_app(cred, {
-    'databaseURL': 'https://bookiftar2025-default-rtdb.firebaseio.com/'  # Replace with your database URL
+    'databaseURL': 'https://bookiftar2025-default-rtdb.firebaseio.com/',  # Replace with your database URL
+    'storageBucket': 'bookiftar2025.firebasestorage.app'
 })
 
 # Flask app setup
@@ -105,6 +106,9 @@ def available_slots(masjid):
 
 
 # 
+from firebase_admin import storage
+import uuid
+
 @app.route('/book/<masjid>', methods=['POST'])
 def book(masjid):
     date = request.form['date']
@@ -128,25 +132,28 @@ def book(masjid):
     except ValueError:
         return jsonify({"status": "error", "message": "Invalid date format."})
 
-    # Save payment proof
+    # Upload payment proof to Firebase Storage
     proof_url = None
     if payment_proof:
-        proof_filename = f"{name}_{datetime.now().strftime('%Y%m%d%H%M%S')}_{payment_proof.filename}"
-        proof_path = os.path.join(app.config['UPLOAD_FOLDER'], proof_filename)
-        payment_proof.save(proof_path)
-        proof_url = f"/static/uploads/{proof_filename}"
+        try:
+            unique_filename = f"{masjid}/{year}/{date}/{uuid.uuid4()}_{payment_proof.filename}"
+            bucket = storage.bucket()
+            blob = bucket.blob(unique_filename)
+            blob.upload_from_file(payment_proof, content_type=payment_proof.content_type)
+            blob.make_public()  # Make the file publicly accessible (if needed)
+            proof_url = blob.public_url
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"Failed to upload payment proof: {str(e)}"})
 
     # Firebase reference for the selected date
     ref = db.reference(f'bookings/{masjid}/{year}/{date}')
     data = ref.get()
 
-    # Ensure data is initialized correctly
+    # Initialize data if not present or malformed
     if not data:
-        return jsonify({"status": "error", "message": "Invalid date or masjid data not initialized."})
-
-    # Initialize missing or malformed slots structure
+        data = {"slots": {}, "slots_filled": 0, "slots_remaining": 8}
     if "slots" not in data or not isinstance(data["slots"], dict):
-        data["slots"] = {str(i): None for i in range(1, 9)}  # Default to 8 slots
+        data["slots"] = {str(i): None for i in range(1, 9)}
         data["slots_filled"] = data.get("slots_filled", 0)
         data["slots_remaining"] = data.get("slots_remaining", 8)
 
@@ -235,17 +242,27 @@ def date_details(masjid):
     ref = db.reference(f'bookings/{masjid}/2025/{date}')
     data = ref.get()
 
-    if not data or "slots" not in data:
-        return render_template('date_details.html', masjid=masjid, date=date, donors=[])
+    # Check if data exists and contains slot information
+    if not data or "slots" not in data or not isinstance(data["slots"], dict):
+        return render_template('date_details.html', masjid=masjid, date=date, slots=[])
 
-    # Extract donor details and calculate the amount
-    donors = []
-    for slot, details in data["slots"].items():
-        if details:  # Only process booked slots
-            details["amount"] = 250  # $250 per slot
-            donors.append(details)
+    # Extract booked slot details
+    slots = []
+    for slot_number, details in data["slots"].items():
+        if details:  # Process only booked slots
+            slots.append({
+                "slot": slot_number,
+                "name": details.get("name", "N/A"),
+                "phone": details.get("phone", "N/A"),
+                "email": details.get("email", "N/A"),
+                "payment_method": details.get("payment_method", "N/A"),
+                "payment_proof": details.get("payment_proof", None)
+            })
 
-    return render_template('date_details.html', masjid=masjid, date=date, donors=donors)
+    return render_template('date_details.html', masjid=masjid, date=date, slots=slots)
+
+
+
 
 @app.route('/allowed-dates/<masjid>', methods=['GET'])
 def allowed_dates(masjid):
