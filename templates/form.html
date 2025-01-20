@@ -11,7 +11,7 @@
         <h1>Book Your Iftar Slot - {{ masjid }}</h1>
         <form action="/book/{{ masjid }}" method="POST" enctype="multipart/form-data">
             <label for="date">Select Date (Fri-Sun):</label>
-            <input type="date" id="date" name="date" required>
+            <input type="date" id="date" name="date" required min="2025-02-28" max="2025-03-29">
             <div id="availability" class="availability">Available Slots: </div>
             <br>
 
@@ -50,7 +50,7 @@
         document.getElementById('date').addEventListener('change', function() {
             const date = this.value;
             const masjid = "{{ masjid }}"; // Pass the masjid dynamically from Flask
-
+    
             fetch(`/available-slots/${masjid}?date=${date}`)
                 .then(response => response.json())
                 .then(data => {
@@ -58,22 +58,59 @@
                         const availableSlots = data.available_slots;
                         const quantitySelect = document.getElementById('quantity');
                         quantitySelect.innerHTML = ''; // Clear existing options
-
-                        // Populate the dropdown with available slots
-                        for (let i = 1; i <= availableSlots; i++) {
-                            const option = document.createElement('option');
-                            option.value = i;
-                            option.textContent = i;
-                            quantitySelect.appendChild(option);
+    
+                        if (availableSlots > 0) {
+                            // Populate the dropdown with available slots
+                            for (let i = 1; i <= availableSlots; i++) {
+                                const option = document.createElement('option');
+                                option.value = i;
+                                option.textContent = i;
+                                quantitySelect.appendChild(option);
+                            }
+    
+                            // Update the availability message
+                            document.getElementById('availability').textContent = `Available Slots: ${availableSlots}`;
+                        } else {
+                            document.getElementById('availability').textContent = "No slots available for the selected date.";
+                            alert("No slots are available for this date.");
                         }
-
-                        // Update the availability message
-                        document.getElementById('availability').textContent = `Available Slots: ${availableSlots}`;
                     } else {
                         alert(data.message); // Show error message if any
+                        document.getElementById('availability').textContent = data.message;
                     }
+                })
+                .catch(error => {
+                    console.error("Error fetching available slots:", error);
+                    alert("An error occurred while checking slot availability.");
                 });
         });
+    </script>
+    
+<!-- 
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const dateInput = document.getElementById('date');
+            const masjid = "{{ masjid }}";
+    
+            // Fetch allowed dates for the masjid
+            fetch(`/allowed-dates/${masjid}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        const allowedDates = data.dates;
+                        dateInput.addEventListener('input', () => {
+                            const selectedDate = dateInput.value;
+                            if (!allowedDates.includes(selectedDate)) {
+                                alert('Selected date is not available for booking.');
+                                dateInput.value = ''; // Clear the invalid date
+                            }
+                        });
+                    } else {
+                        console.error(data.message);
+                    }
+                })
+                .catch(error => console.error('Error fetching allowed dates:', error));
+        }); -->
     </script>
 </body>
 </html>

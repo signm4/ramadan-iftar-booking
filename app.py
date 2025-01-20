@@ -60,19 +60,35 @@ def masjid_form(masjid):
     return render_template('form.html', masjid=masjid)
 
 
+from datetime import datetime
+
 @app.route('/available-slots/<masjid>', methods=['GET'])
 def available_slots(masjid):
     date = request.args.get('date')
     if not date:
         return jsonify({"status": "error", "message": "Date is required."})
 
+    try:
+        # Parse the date and validate the day of the week
+        booking_date = datetime.strptime(date, "%Y-%m-%d")
+        valid_days = [4, 5, 6]  # Friday (4), Saturday (5), Sunday (6)
+
+        # Check if the selected day is valid
+        if booking_date.weekday() not in valid_days:
+            return jsonify({"status": "error", "message": "Selected date is not valid. Bookings are only allowed on Friday, Saturday, and Sunday."})
+    except ValueError:
+        return jsonify({"status": "error", "message": "Invalid date format."})
+
+    # Extract the year and reference Firebase
     year = date.split('-')[0]
     ref = db.reference(f'bookings/{masjid}/{year}/{date}')
     data = ref.get()
 
+    # Return default slots if no data exists for the date
     if not data:
-        return jsonify({"status": "success", "available_slots": 8})  # Default to 8 slots for a new date
+        return jsonify({"status": "success", "available_slots": 8})
 
+    # Return the slots remaining
     return jsonify({"status": "success", "available_slots": data.get('slots_remaining', 8)})
 
 # 
@@ -86,6 +102,18 @@ def book(masjid):
     email = request.form['email']
     payment_method = request.form['payment_method']
     payment_proof = request.files.get('payment-proof')
+
+    # Validate date (ensure it's within the allowed range and days)
+    start_date = datetime(2025, 2, 28)
+    end_date = datetime(2025, 3, 29)
+    valid_days = [4, 5, 6]  # Friday, Saturday, Sunday
+
+    try:
+        booking_date = datetime.strptime(date, "%Y-%m-%d")
+        if not (start_date <= booking_date <= end_date) or booking_date.weekday() not in valid_days:
+            return jsonify({"status": "error", "message": "Selected date is not valid for this masjid."})
+    except ValueError:
+        return jsonify({"status": "error", "message": "Invalid date format."})
 
     # Save payment proof
     proof_url = None
@@ -133,6 +161,7 @@ def book(masjid):
     ref.set(data)
 
     return redirect('/thank-you')
+
 
 @app.route('/thank-you')
 def thank_you():
@@ -204,6 +233,23 @@ def date_details(masjid):
             donors.append(details)
 
     return render_template('date_details.html', masjid=masjid, date=date, donors=donors)
+
+@app.route('/allowed-dates/<masjid>', methods=['GET'])
+def allowed_dates(masjid):
+    # Define the allowed date range and days
+    start_date = datetime(2025, 2, 28)
+    end_date = datetime(2025, 3, 29)
+    valid_days = [4, 5, 6]  # Friday, Saturday, Sunday
+
+    # Generate valid dates
+    dates = []
+    current_date = start_date
+    while current_date <= end_date:
+        if current_date.weekday() in valid_days:
+            dates.append(current_date.strftime('%Y-%m-%d'))
+        current_date += timedelta(days=1)
+
+    return jsonify({"status": "success", "dates": dates})
 
 
 if __name__ == '__main__':
