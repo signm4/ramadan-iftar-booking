@@ -59,22 +59,6 @@ def select_masjid():
 def masjid_form(masjid):
     return render_template('form.html', masjid=masjid)
 
-# @app.route('/available-slots', methods=['GET'])
-# def available_slots():
-#     date = request.args.get('date')
-#     if not date:
-#         return jsonify({"status": "error", "message": "Date is required."})
-
-#     try:
-#         booking_date = datetime.strptime(date, "%Y-%m-%d")
-#         if not (datetime(2025, 2, 28) <= booking_date <= datetime(2025, 3, 29)) or booking_date.weekday() not in [4, 5, 6]:
-#             return jsonify({"status": "error", "message": "Invalid date. Only Fridays, Saturdays, and Sundays are allowed."})
-#     except ValueError:
-#         return jsonify({"status": "error", "message": "Invalid date format."})
-
-#     booked = slots_booked(date)
-#     available = max(0, 8 - booked)
-#     return jsonify({"status": "success", "available": available})
 
 @app.route('/available-slots/<masjid>', methods=['GET'])
 def available_slots(masjid):
@@ -91,40 +75,7 @@ def available_slots(masjid):
 
     return jsonify({"status": "success", "available_slots": data.get('slots_remaining', 8)})
 
-
-
-# @app.route('/book', methods=['POST'])
-# def book():
-#     date = request.form['date']
-#     quantity = int(request.form['quantity'])
-#     name = request.form['name']
-#     phone = request.form['phone']
-#     email = request.form['email']
-#     payment_method = request.form['payment_method']
-#     payment_proof = request.files.get('payment-proof')
-
-#     # Save payment proof
-#     proof_url = None
-#     if payment_proof:
-#         proof_filename = f"{name}_{datetime.now().strftime('%Y%m%d%H%M%S')}_{payment_proof.filename}"
-#         proof_path = os.path.join(app.config['UPLOAD_FOLDER'], proof_filename)
-#         payment_proof.save(proof_path)
-#         proof_url = f"/static/uploads/{proof_filename}"
-
-#     # Save booking in Firebase
-#     ref = db.reference('bookings')
-#     ref.push({
-#         'date': date,
-#         'quantity': quantity,
-#         'name': name,
-#         'phone': phone,
-#         'email': email,
-#         'payment_method': payment_method,
-#         'payment_proof': proof_url
-#     })
-
-#     return redirect('/thank-you')
-
+# 
 @app.route('/book/<masjid>', methods=['POST'])
 def book(masjid):
     date = request.form['date']
@@ -144,26 +95,29 @@ def book(masjid):
         payment_proof.save(proof_path)
         proof_url = f"/static/uploads/{proof_filename}"
 
-    # Get Firebase reference for the date
+    # Firebase reference for the selected date
     ref = db.reference(f'bookings/{masjid}/{year}/{date}')
     data = ref.get()
 
-    # Initialize data if date doesn't exist
+    # Ensure data is initialized correctly
     if not data:
-        data = {
-            "slots": {},  # Initialize slots node
-            "slots_filled": 0,
-            "slots_remaining": 8
-        }
+        return jsonify({"status": "error", "message": "Invalid date or masjid data not initialized."})
+
+    # Initialize missing or malformed slots structure
+    if "slots" not in data or not isinstance(data["slots"], dict):
+        data["slots"] = {str(i): None for i in range(1, 9)}  # Default to 8 slots
+        data["slots_filled"] = data.get("slots_filled", 0)
+        data["slots_remaining"] = data.get("slots_remaining", 8)
 
     # Check slot availability
-    if data["slots_remaining"] < quantity:
-        return jsonify({"status": "error", "message": f"Only {data['slots_remaining']} slots are available."})
+    available_slots = [int(slot) for slot, details in data["slots"].items() if details is None]
+    if len(available_slots) < quantity:
+        return jsonify({"status": "error", "message": f"Only {len(available_slots)} slots are available."})
 
-    # Update slot details
-    next_slot = data["slots_filled"] + 1
-    for i in range(next_slot, next_slot + quantity):
-        data["slots"][str(i)] = {  # Store donor details in slots
+    # Fill slots with donor details
+    for i in range(quantity):
+        slot_index = available_slots[i]
+        data["slots"][str(slot_index)] = {
             "name": name,
             "phone": phone,
             "email": email,
@@ -179,8 +133,6 @@ def book(masjid):
     ref.set(data)
 
     return redirect('/thank-you')
-
-
 
 @app.route('/thank-you')
 def thank_you():
@@ -232,26 +184,27 @@ def date_details(masjid):
     if not session.get('admin_logged_in') or session.get('masjid') != masjid:
         return redirect(f'/admin-login/{masjid}')
 
+    # Get the date from query parameters
     date = request.args.get('date')
     if not date:
         return redirect(f'/admin-dashboard/{masjid}')
 
-    ref = db.reference('bookings')
-    bookings = ref.order_by_child('date').equal_to(date).get()
+    # Fetch data from Firebase
+    ref = db.reference(f'bookings/{masjid}/2025/{date}')
+    data = ref.get()
 
-    donors = [
-        {
-            'name': data['name'],
-            'phone': data['phone'],
-            'email': data['email'],
-            'quantity': data['quantity'],
-            'payment_method': data['payment_method'],
-            'payment_proof': data['payment_proof']
-        }
-        for key, data in bookings.items()
-    ]
+    if not data or "slots" not in data:
+        return render_template('date_details.html', masjid=masjid, date=date, donors=[])
+
+    # Extract donor details and calculate the amount
+    donors = []
+    for slot, details in data["slots"].items():
+        if details:  # Only process booked slots
+            details["amount"] = 250  # $250 per slot
+            donors.append(details)
 
     return render_template('date_details.html', masjid=masjid, date=date, donors=donors)
+
 
 if __name__ == '__main__':
     app.run(debug=True)
