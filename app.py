@@ -57,7 +57,17 @@ def select_masjid():
 
 @app.route('/masjid/<masjid>')
 def masjid_form(masjid):
-    return render_template('form.html', masjid=masjid)
+    try:
+        # Debugging log
+        print(f"Masjid: {masjid}")
+        
+        # Render the form.html template, passing the masjid variable
+        return render_template('form.html', masjid=masjid)
+    except Exception as e:
+        # Log the error and return a generic error message
+        print(f"Error rendering form.html for masjid: {masjid}. Error: {e}")
+        return "An error occurred while rendering the form.", 500
+
 
 
 from datetime import datetime
@@ -69,27 +79,30 @@ def available_slots(masjid):
         return jsonify({"status": "error", "message": "Date is required."})
 
     try:
-        # Parse the date and validate the day of the week
+        # Validate the date
         booking_date = datetime.strptime(date, "%Y-%m-%d")
-        valid_days = [4, 5, 6]  # Friday (4), Saturday (5), Sunday (6)
+        start_date = datetime(2025, 2, 28)
+        end_date = datetime(2025, 3, 29)
+        valid_days = [4, 5, 6]  # Friday, Saturday, Sunday
 
-        # Check if the selected day is valid
-        if booking_date.weekday() not in valid_days:
-            return jsonify({"status": "error", "message": "Selected date is not valid. Bookings are only allowed on Friday, Saturday, and Sunday."})
+        if not (start_date <= booking_date <= end_date) or booking_date.weekday() not in valid_days:
+            return jsonify({"status": "error", "message": "Selected date is not valid for this masjid."})
     except ValueError:
         return jsonify({"status": "error", "message": "Invalid date format."})
 
-    # Extract the year and reference Firebase
+    # Fetch data from Firebase
     year = date.split('-')[0]
     ref = db.reference(f'bookings/{masjid}/{year}/{date}')
     data = ref.get()
 
-    # Return default slots if no data exists for the date
-    if not data:
-        return jsonify({"status": "success", "available_slots": 8})
+    # If the date doesn't exist, default to 8 available slots
+    available_slots = 8
+    if data:
+        available_slots = data.get('slots_remaining', 8)
 
-    # Return the slots remaining
-    return jsonify({"status": "success", "available_slots": data.get('slots_remaining', 8)})
+    return jsonify({"status": "success", "available_slots": available_slots})
+
+
 
 # 
 @app.route('/book/<masjid>', methods=['POST'])

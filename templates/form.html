@@ -3,54 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Book Slots - {{ masjid }}</title>
+    <title>Book Iftar - {{ masjid }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-    <div class="container">
-        <h1>Book Your Iftar Slot - {{ masjid }}</h1>
-        <form action="/book/{{ masjid }}" method="POST" enctype="multipart/form-data">
+    <!-- Header Section -->
+    <header class="header">
+        <!-- Main Logo -->
+        <div class="main-logo-container">
+            <img src="{{ url_for('static', filename='mainLogo.jpg') }}" alt="Main Logo" class="main-logo">
+        </div>
+
+        <!-- Admin Login -->
+        <div class="admin-login-container">
+            <a href="/admin-login/{{ masjid }}" class="admin-login">Admin Login</a>
+        </div>
+    </header>
+
+    <!-- Form Section -->
+    <div class="form-container">
+        <!-- Masjid Logo -->
+        <div class="masjid-logo-container">
+            <img src="{{ url_for('static', filename=masjid ~ '_logo.jpg') }}" alt="{{ masjid }} Logo" class="masjid-logo">
+        </div>
+
+        <h1>Book Your Iftar Slot</h1>
+        <!-- Below add dates for min and max for Ramadan -->
+        <form action="/book/{{ masjid }}" method="POST" enctype="multipart/form-data" class="booking-form">
             <label for="date">Select Date (Fri-Sun):</label>
-            <input type="date" id="date" name="date" required min="2025-02-28" max="2025-03-29">
+            <input type="date" id="date" name="date" required
+                    min="2025-02-28" max="2025-03-29" value="2025-02-28">
             <div id="availability" class="availability">Available Slots: </div>
-            <br>
 
             <label for="quantity">Number of Slots:</label>
             <select id="quantity" name="quantity" required>
                 <option value="" disabled selected>Select Slots</option>
             </select>
-            <br>
+            <div id="total-amount" class="total-amount">Total Amount Due: </div>
 
             <label for="name">Your Name:</label>
             <input type="text" id="name" name="name" required>
-            <br>
 
             <label for="phone">Phone Number:</label>
             <input type="tel" id="phone" name="phone" required>
-            <br>
 
             <label for="email">Email:</label>
             <input type="email" id="email" name="email" required>
-            <br>
 
             <label for="payment-method">Payment Method:</label>
             <input type="text" id="payment-method" name="payment_method" placeholder="Enter your payment method (e.g., Zelle, Venmo, etc.)" required>
-            <br>
 
             <label for="payment-proof">Upload Payment Confirmation:</label>
             <input type="file" id="payment-proof" name="payment-proof" accept="image/*" required>
-            <br>
 
             <button type="submit" class="submit-button">Book</button>
         </form>
     </div>
 
-    <!-- JavaScript for Dynamic Slot Availability -->
+    <!-- JavaScript Section -->
     <script>
         document.getElementById('date').addEventListener('change', function() {
             const date = this.value;
             const masjid = "{{ masjid }}"; // Pass the masjid dynamically from Flask
-    
+
             fetch(`/available-slots/${masjid}?date=${date}`)
                 .then(response => response.json())
                 .then(data => {
@@ -58,7 +73,7 @@
                         const availableSlots = data.available_slots;
                         const quantitySelect = document.getElementById('quantity');
                         quantitySelect.innerHTML = ''; // Clear existing options
-    
+
                         if (availableSlots > 0) {
                             // Populate the dropdown with available slots
                             for (let i = 1; i <= availableSlots; i++) {
@@ -67,7 +82,7 @@
                                 option.textContent = i;
                                 quantitySelect.appendChild(option);
                             }
-    
+
                             // Update the availability message
                             document.getElementById('availability').textContent = `Available Slots: ${availableSlots}`;
                         } else {
@@ -84,33 +99,6 @@
                     alert("An error occurred while checking slot availability.");
                 });
         });
-    </script>
-    
-<!-- 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const dateInput = document.getElementById('date');
-            const masjid = "{{ masjid }}";
-    
-            // Fetch allowed dates for the masjid
-            fetch(`/allowed-dates/${masjid}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        const allowedDates = data.dates;
-                        dateInput.addEventListener('input', () => {
-                            const selectedDate = dateInput.value;
-                            if (!allowedDates.includes(selectedDate)) {
-                                alert('Selected date is not available for booking.');
-                                dateInput.value = ''; // Clear the invalid date
-                            }
-                        });
-                    } else {
-                        console.error(data.message);
-                    }
-                })
-                .catch(error => console.error('Error fetching allowed dates:', error));
-        }); -->
     </script>
 </body>
 </html>
