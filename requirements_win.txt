@@ -5,6 +5,8 @@ cffi==1.17.1
 charset-normalizer==3.4.1
 cryptography==44.0.0
 firebase-admin==6.6.0
+Flask==2.2.2
+Flask-Login==0.6.2
 google-api-core==2.24.0
 google-api-python-client==2.159.0
 google-auth==2.37.0
@@ -17,6 +19,7 @@ google-resumable-media==2.7.2
 googleapis-common-protos==1.66.0
 grpcio==1.69.0
 grpcio-status==1.69.0
+gunicorn
 httplib2==0.22.0
 idna==3.10
 msgpack==1.1.0

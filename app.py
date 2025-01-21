@@ -2,12 +2,12 @@ from flask import Flask, request, render_template, jsonify, redirect, url_for, s
 from datetime import datetime, timedelta
 import os, csv, io
 import zipfile
-from flask_sqlalchemy import SQLAlchemy
+# from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 
 import firebase_admin
-from firebase_admin import credentials, db
+from firebase_admin import credentials, db, initialize_app
 
 # Load environment variables
 load_dotenv()
@@ -15,18 +15,19 @@ load_dotenv()
 # Initialize Firebase
 cert_url = os.getenv('CERT_URL')
 cred = credentials.Certificate(cert_url)  # Replace with your JSON file path
+db_url = os.getenv('DATABASE_URL')
 firebase_admin.initialize_app(cred, {
-    'databaseURL': 'https://bookiftar2025-default-rtdb.firebaseio.com/',  # Replace with your database URL
+    'databaseURL': db_url,  # Replace with your database URL
     'storageBucket': 'bookiftar2025.firebasestorage.app'
 })
 
 # Flask app setup
 app = Flask(__name__, static_folder='static')
 app.secret_key = os.getenv('SECRET_KEY', 'default_secret_key')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///bookings.db')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///bookings.db')
+# app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-db_sql = SQLAlchemy(app)
+# db_sql = SQLAlchemy(app)
 
 # Admin credentials
 ADMIN_USERNAME = 'admin'
@@ -390,6 +391,7 @@ def allowed_dates(masjid):
     return jsonify({"status": "success", "dates": dates})
 
 
-if __name__ == '__main__':
-    app.run(debug=True)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8080)
+
 
