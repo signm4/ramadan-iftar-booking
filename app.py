@@ -14,6 +14,9 @@ load_dotenv()
 
 # Initialize Firebase
 cert_url = os.getenv('CERT_URL')
+print (cert_url)
+print(f"Using certificate path: {cert_url}")
+
 cred = credentials.Certificate(cert_url)  # Replace with your JSON file path
 db_url = os.getenv('DATABASE_URL')
 firebase_admin.initialize_app(cred, {
