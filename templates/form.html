@@ -28,20 +28,17 @@
         </div>
 
         <h1>Book Your Iftar Slot</h1>
-        <!-- Below add dates for min and max for Ramadan -->
         <form action="/book/{{ masjid }}" method="POST" enctype="multipart/form-data" class="booking-form">
             <label for="date">Select Date (Fri-Sun):</label>
             <input type="date" id="date" name="date" required
-                    min="2025-02-28" max="2025-03-29" value="2025-02-28">
+                    min="2025-02-28" max="2025-03-29" value="2025-02-25">
             <div id="availability" class="availability">Available Slots: </div>
 
             <label for="quantity">Number of Slots:</label>
             <select id="quantity" name="quantity" required>
                 <option value="" disabled selected>Select Slots</option>
             </select>
-            <!-- <div id="total-amount" class="total-amount">Total Amount Due: </div> -->
             <div id="total-amount" class="total-amount">Total Amount Due: $0</div>
-
 
             <label for="name">Your Name:</label>
             <input type="text" id="name" name="name" required>
@@ -53,11 +50,20 @@
             <input type="email" id="email" name="email" required>
 
             <label for="payment-method">Payment Method:</label>
-            <select id="payment-method" name="payment_method" placeholder="Enter your payment method (e.g., Zelle, Venmo, etc.)" required>
+            <select id="payment-method" name="payment_method" required>
+                <option value="" disabled selected>Select Payment Method</option>
                 <option value="Zelle">Zelle</option>
                 <option value="Venmo">Venmo</option>
-                <option value="cash">Cash</option>
-                <option value="check">Check</option>
+                <option value="CreditCard">Credit Card</option>
+                <option value="Cash">Cash</option>
+                <option value="Check">Check</option>
+            </select>
+
+            <div id="payment-instructions" style="display: none; margin-top: 10px;">
+                <p id="payment-details"></p>
+                <a id="payment-link" href="#" target="_blank" style="display: none;">Proceed to Payment</a>
+            </div>
+
             <label for="payment-proof">Upload Payment Confirmation:</label>
             <input type="file" id="payment-proof" name="payment-proof" accept="image/*" required>
 
@@ -67,46 +73,79 @@
 
     <!-- JavaScript Section -->
     <script>
-        document.getElementById('date').addEventListener('change', function() {
-            const date = this.value;
-            const masjid = "{{ masjid }}"; // Pass the masjid dynamically from Flask
-            const PRICE_PER_SLOT = 250; // Define the price per slot
+        const PRICE_PER_SLOT = 250; // Define the price per slot
+        const paymentDetails = {
+            "Zelle": "Send your payment to donate@masjidbilaltx.org.",
+            "Venmo": "Send your payment using the link below.",
+            "CreditCard": "Click the link below to proceed with your credit card payment.",
+            "Cash": "Please provide cash directly to the masjid.",
+            "Check": "Please deliver your check to the masjid."
+        };
+        const paymentLinks = {
+            "Venmo": "https://venmo.com/u/ichc-masjidbilal",
+            "CreditCard": "https://donate.charitystack.com/1ecc2fec-72fc-4b88-89bd-e03e8d15465d",
+        };
 
-            document.getElementById('quantity').addEventListener('change', function() {
-                const quantity = parseInt(this.value, 10);
-                const totalAmountDiv = document.getElementById('total-amount');
+        // Update total amount dynamically
+        document.getElementById('quantity').addEventListener('change', function () {
+            const quantity = parseInt(this.value, 10);
+            const totalAmountDiv = document.getElementById('total-amount');
+            const totalAmount = quantity * PRICE_PER_SLOT;
+            totalAmountDiv.textContent = `Total Amount Due: $${totalAmount}`;
+        });
 
-                if (!isNaN(quantity)) {
-                    const totalAmount = quantity * PRICE_PER_SLOT;
-                    totalAmountDiv.textContent = `Total Amount Due: $${totalAmount}`;
+        // Update payment instructions dynamically
+        document.getElementById('payment-method').addEventListener('change', function () {
+            const method = this.value;
+            const quantity = parseInt(document.getElementById('quantity').value, 10) || 0;
+            const totalAmount = quantity * PRICE_PER_SLOT;
+            const paymentInstructions = document.getElementById('payment-instructions');
+            const paymentDetailsText = document.getElementById('payment-details');
+            const paymentLink = document.getElementById('payment-link');
+
+            if (paymentDetails[method]) {
+                paymentInstructions.style.display = "block";
+                paymentDetailsText.textContent = `${paymentDetails[method]} ${method === "CreditCard" || method === "Venmo" ? "" : `Amount: $${totalAmount}`}`;
+
+                if (paymentLinks[method]) {
+                    paymentLink.href = `${paymentLinks[method]}${method === "CreditCard" ? `?amount=${totalAmount}&fund=Ramadan+Fund` : ""}`;
+                    paymentLink.style.display = "inline-block";
+                    paymentLink.textContent = `Proceed to ${method} Payment`;
+                } else {
+                    paymentLink.style.display = "none";
                 }
-            });
+            } else {
+                paymentInstructions.style.display = "none";
+            }
+        });
+
+        // Fetch available slots dynamically
+        document.getElementById('date').addEventListener('change', function () {
+            const date = this.value;
+            const masjid = "{{ masjid }}";
 
             fetch(`/available-slots/${masjid}?date=${date}`)
                 .then(response => response.json())
                 .then(data => {
+                    const quantitySelect = document.getElementById('quantity');
+                    quantitySelect.innerHTML = ''; // Clear existing options
+
                     if (data.status === "success") {
                         const availableSlots = data.available_slots;
-                        const quantitySelect = document.getElementById('quantity');
-                        quantitySelect.innerHTML = ''; // Clear existing options
-
                         if (availableSlots > 0) {
-                            // Populate the dropdown with available slots
                             for (let i = 1; i <= availableSlots; i++) {
                                 const option = document.createElement('option');
                                 option.value = i;
                                 option.textContent = i;
                                 quantitySelect.appendChild(option);
                             }
-
-                            // Update the availability message
                             document.getElementById('availability').textContent = `Available Slots: ${availableSlots}`;
                         } else {
                             document.getElementById('availability').textContent = "No slots available for the selected date.";
                             alert("No slots are available for this date.");
                         }
                     } else {
-                        alert(data.message); // Show error message if any
+                        alert(data.message);
                         document.getElementById('availability').textContent = data.message;
                     }
                 })
