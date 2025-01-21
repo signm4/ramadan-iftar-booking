@@ -1,13 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Slot Details - {{ masjid }} - {{ date }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-</head>
-<body>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Slot Details - {{ masjid }} - {{ date }}</title>
+        <link rel="stylesheet" href="{{ url_for('static', filename='date_details.css') }}">
+        <p style="background-image: url('mainLogo.jpg');"></p>
+    </head>
     <h1>Slot Details for {{ masjid }} on {{ date }}</h1>
+
+    {% if donors %}
     <table>
         <thead>
             <tr>
@@ -20,28 +22,28 @@
             </tr>
         </thead>
         <tbody>
-            {% for slot in slots %}
+            {% for donor in donors %}
             <tr>
-                <td>{{ slot.slot }}</td>
-                <td>{{ slot.name }}</td>
-                <td>{{ slot.phone }}</td>
-                <td>{{ slot.email }}</td>
-                <td>{{ slot.payment_method }}</td>
+                <td>{{ donor.slot }}</td>
+                <td>{{ donor.name or 'N/A' }}</td>
+                <td>{{ donor.phone or 'N/A' }}</td>
+                <td>{{ donor.email or 'N/A' }}</td>
+                <td>{{ donor.payment_method or 'N/A' }}</td>
                 <td>
-                    {% if slot.payment_proof %}
-                        <a href="{{ slot.payment_proof }}" target="_blank">View Proof</a>
+                    {% if donor.payment_proof %}
+                        <a href="{{ donor.payment_proof }}" target="_blank">View Proof</a>
                     {% else %}
                         No Proof Uploaded
                     {% endif %}
                 </td>
             </tr>
-            {% else %}
-            <tr>
-                <td colspan="6">No slots booked for this date.</td>
-            </tr>
             {% endfor %}
         </tbody>
     </table>
+    {% else %}
+    <p>{{ message }}</p>
+    {% endif %}
+
     <a href="/admin-dashboard/{{ masjid }}">Back to Dashboard</a>
 </body>
 </html>

@@ -105,8 +105,6 @@ def available_slots(masjid):
     return jsonify({"status": "success", "available_slots": available_slots})
 
 
-
-# 
 from firebase_admin import storage
 import uuid
 
@@ -154,25 +152,40 @@ def book(masjid):
     ref = db.reference(f'bookings/{masjid}/{year}/{date}')
     data = ref.get()
 
-    # Initialize data if not present or malformed
+    # Debugging: Log the data retrieved from Firebase
+    print("DEBUG: Data retrieved from Firebase:", data)
+
+    # Handle the initialization of data
     if not data:
         data = {"slots": {str(i): None for i in range(1, 9)}, "slots_filled": 0, "slots_remaining": 8}
-
-    # Ensure the "slots" structure is valid
-    if "slots" not in data or not isinstance(data["slots"], dict):
+        print("DEBUG: Data initialized because it was missing.")
+    elif isinstance(data.get("slots"), list):
+        # Convert slots from a list to a dictionary
+        print("DEBUG: Converting slots from list to dictionary.")
+        slots_dict = {str(index + 1): slot for index, slot in enumerate(data["slots"])}
+        for i in range(1, 9):
+            slots_dict.setdefault(str(i), None)  # Add missing slots
+        data["slots"] = slots_dict
+    elif not isinstance(data.get("slots"), dict):
+        # Ensure the "slots" structure is valid
+        print("DEBUG: Validating and ensuring the slots structure.")
         data["slots"] = {str(i): None for i in range(1, 9)}
-    data["slots_filled"] = data.get("slots_filled", 0)
-    data["slots_remaining"] = data.get("slots_remaining", 8)
+        data["slots_filled"] = sum(1 for details in data["slots"].values() if details)
+        data["slots_remaining"] = 8 - data["slots_filled"]
 
-    # Check slot availability
-    available_slots = [int(slot) for slot, details in data["slots"].items() if details is None]
+    # Debugging: Log slot availability
+    available_slots = [slot for slot, details in data["slots"].items() if details is None]
+    print(f"DEBUG: Available slots before booking: {available_slots}")
+
+    # Check if enough slots are available
     if len(available_slots) < quantity:
         return jsonify({"status": "error", "message": f"Only {len(available_slots)} slots are available."})
 
     # Fill slots with donor details
     for i in range(quantity):
-        slot_index = available_slots[i]
-        data["slots"][str(slot_index)] = {
+        next_slot = available_slots[i]
+        print(f"DEBUG: Booking slot {next_slot} for donor {name}.")
+        data["slots"][next_slot] = {
             "name": name,
             "phone": phone,
             "email": email,
@@ -184,13 +197,19 @@ def book(masjid):
     data["slots_filled"] += quantity
     data["slots_remaining"] = 8 - data["slots_filled"]
 
+    # Debugging: Log updated data
+    print("DEBUG: Updated data to save to Firebase:", data)
+
     # Save updated data back to Firebase
-    ref.update(data)  # Use update instead of set to preserve existing data
+    try:
+        ref.set(data)  # Use set to save the updated data structure
+        print("DEBUG: Data successfully saved to Firebase.")
+    except Exception as e:
+        print(f"DEBUG: Failed to save data to Firebase: {str(e)}")
+        return jsonify({"status": "error", "message": f"Failed to save data to Firebase: {str(e)}"})
 
     # Render thank you page
     return render_template('thank_you.html', masjid=masjid)
-
-
 
 @app.route('/thank-you')
 def thank_you():
@@ -236,7 +255,6 @@ def admin_dashboard(masjid):
 
     return render_template('admin_dashboard.html', masjid=masjid, date_summary=date_summary)
 
-
 @app.route('/admin-dashboard/<masjid>/details', methods=['GET'])
 def date_details(masjid):
     if not session.get('admin_logged_in') or session.get('masjid') != masjid:
@@ -252,13 +270,22 @@ def date_details(masjid):
     ref = db.reference(f'bookings/{masjid}/{year}/{date}')
     data = ref.get()
 
-    # Check if the data exists for the given date
-    if not data or "slots" not in data:
-        return render_template('date_details.html', masjid=masjid, date=date, donors=[], message="No slots booked for this date.")
+    # Debugging output
+    print("Data received from Firebase:", data)
 
-    # Extract slot details
+    # Ensure data exists and has the correct structure
+    if not data or "slots" not in data or not isinstance(data["slots"], list):
+        return render_template(
+            'date_details.html',
+            masjid=masjid,
+            date=date,
+            donors=[],
+            message="No slots booked for this date."
+        )
+
+    # Extract donor details from slots
     donors = []
-    for slot_number, details in data["slots"].items():
+    for slot_number, details in enumerate(data["slots"], start=1):
         if details:  # Only process booked slots
             donors.append({
                 "slot": slot_number,
@@ -269,8 +296,78 @@ def date_details(masjid):
                 "payment_proof": details.get("payment_proof", None)  # Link to proof if available
             })
 
-    # Render the details in the template
+    # Debugging output
+    print("Processed donor data:", donors)
+
+    # Render template with donor data
     return render_template('date_details.html', masjid=masjid, date=date, donors=donors)
+
+import csv
+import zipfile
+import io
+from flask import send_file
+
+@app.route('/admin-dashboard/<masjid>/export-all', methods=['GET'])
+def export_all_data(masjid):
+    # Ensure admin is logged in
+    if not session.get('admin_logged_in') or session.get('masjid') != masjid:
+        return redirect(f'/admin-login/{masjid}')
+
+    # Reference for all dates under the masjid
+    ref = db.reference(f'bookings/{masjid}/2025')
+    data = ref.get()
+
+    if not data:
+        return jsonify({"status": "error", "message": "No data available for export."})
+
+    # Prepare data for CSVs
+    summary_rows = [["Date", "Slots Filled", "Slots Remaining", "Total Donated"]]
+    detailed_rows = [["Date", "Slot", "Name", "Phone", "Email", "Payment Method", "Payment Proof"]]
+
+    for date, details in data.items():
+        slots_filled = details.get("slots_filled", 0)
+        slots_remaining = details.get("slots_remaining", 8)
+        total_donated = slots_filled * 250  # Assuming $250 per slot
+
+        # Add to summary CSV
+        summary_rows.append([date, slots_filled, slots_remaining, total_donated])
+
+        # Add detailed data for each slot
+        if "slots" in details and isinstance(details["slots"], list):
+            for slot_number, slot_data in enumerate(details["slots"], start=1):
+                if slot_data:  # Only include booked slots
+                    detailed_rows.append([
+                        date,
+                        slot_number,
+                        slot_data.get("name", "N/A"),
+                        slot_data.get("phone", "N/A"),
+                        slot_data.get("email", "N/A"),
+                        slot_data.get("payment_method", "N/A"),
+                        slot_data.get("payment_proof", "N/A")
+                    ])
+
+    # Create in-memory files for the CSVs
+    summary_file = io.StringIO()
+    detailed_file = io.StringIO()
+
+    # Write CSV content
+    csv.writer(summary_file).writerows(summary_rows)
+    csv.writer(detailed_file).writerows(detailed_rows)
+
+    # Create a ZIP file with both CSVs
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w") as zip_file:
+        zip_file.writestr("summary.csv", summary_file.getvalue())
+        zip_file.writestr("detailed.csv", detailed_file.getvalue())
+
+    # Set ZIP buffer for download
+    zip_buffer.seek(0)
+    return send_file(
+        zip_buffer,
+        mimetype="application/zip",
+        as_attachment=True,
+        download_name=f"{masjid}_export_all_data.zip"
+    )
 
 
 
