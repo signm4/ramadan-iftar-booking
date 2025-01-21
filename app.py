@@ -2,7 +2,7 @@ from flask import Flask, request, render_template, jsonify, redirect, url_for, s
 from datetime import datetime, timedelta
 import os, csv, io
 import zipfile
-from flask_sqlalchemy import SQLAlchemy
+# from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 
@@ -23,10 +23,10 @@ firebase_admin.initialize_app(cred, {
 # Flask app setup
 app = Flask(__name__, static_folder='static')
 app.secret_key = os.getenv('SECRET_KEY', 'default_secret_key')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///bookings.db')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///bookings.db')
+# app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-db_sql = SQLAlchemy(app)
+# db_sql = SQLAlchemy(app)
 
 # Admin credentials
 ADMIN_USERNAME = 'admin'

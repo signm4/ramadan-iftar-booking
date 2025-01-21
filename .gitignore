@@ -12,3 +12,4 @@ olddb2.txt
 # IDE files
 .vscode/
 .idea/
+secrets.json
