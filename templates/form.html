@@ -53,8 +53,11 @@
             <input type="email" id="email" name="email" required>
 
             <label for="payment-method">Payment Method:</label>
-            <input type="text" id="payment-method" name="payment_method" placeholder="Enter your payment method (e.g., Zelle, Venmo, etc.)" required>
-
+            <select id="payment-method" name="payment_method" placeholder="Enter your payment method (e.g., Zelle, Venmo, etc.)" required>
+                <option value="Zelle">Zelle</option>
+                <option value="Venmo">Venmo</option>
+                <option value="cash">Cash</option>
+                <option value="check">Check</option>
             <label for="payment-proof">Upload Payment Confirmation:</label>
             <input type="file" id="payment-proof" name="payment-proof" accept="image/*" required>
 
