@@ -14,9 +14,6 @@ load_dotenv()
 
 # Initialize Firebase
 cert_url = os.getenv('CERT_URL')
-print (cert_url)
-print(f"Using certificate path: {cert_url}")
-
 cred = credentials.Certificate(cert_url)  # Replace with your JSON file path
 firebase_admin.initialize_app(cred, {
     'databaseURL': 'https://bookiftar2025-default-rtdb.firebaseio.com/',  # Replace with your database URL

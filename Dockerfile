@@ -1,8 +1,11 @@
-# Use a slim Python image
-FROM python:3.10-slim
+# syntax=docker/dockerfile:1
 
-# Set the working directory
-WORKDIR /app
+ARG PYTHON_VERSION=3.10.8
+FROM python:${PYTHON_VERSION}-slim
+
+LABEL fly_launch_runtime="flask"
+
+WORKDIR /code
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -17,15 +20,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Upgrade pip
 RUN pip install --upgrade pip setuptools wheel
 
-# Copy requirements.txt and install dependencies
-COPY requirements.txt .
+# Copy the requirements file and install dependencies
+COPY requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the application code
 COPY . .
-
-# Copy secrets.json into the container
-COPY secrets.json /app/secrets.json
 
 # Expose the application port
 EXPOSE 8080
