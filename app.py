@@ -113,6 +113,9 @@ import uuid
 PRICE_PER_SLOT = 250
 @app.route('/book/<masjid>', methods=['POST'])
 def book(masjid):
+    import uuid
+
+    # Retrieve form data
     date = request.form['date']
     year = date.split('-')[0]
     quantity = int(request.form['quantity'])
@@ -153,11 +156,13 @@ def book(masjid):
 
     # Initialize data if not present or malformed
     if not data:
-        data = {"slots": {}, "slots_filled": 0, "slots_remaining": 8}
+        data = {"slots": {str(i): None for i in range(1, 9)}, "slots_filled": 0, "slots_remaining": 8}
+
+    # Ensure the "slots" structure is valid
     if "slots" not in data or not isinstance(data["slots"], dict):
         data["slots"] = {str(i): None for i in range(1, 9)}
-        data["slots_filled"] = data.get("slots_filled", 0)
-        data["slots_remaining"] = data.get("slots_remaining", 8)
+    data["slots_filled"] = data.get("slots_filled", 0)
+    data["slots_remaining"] = data.get("slots_remaining", 8)
 
     # Check slot availability
     available_slots = [int(slot) for slot, details in data["slots"].items() if details is None]
@@ -177,13 +182,14 @@ def book(masjid):
 
     # Update slots filled and remaining
     data["slots_filled"] += quantity
-    data["slots_remaining"] -= quantity
+    data["slots_remaining"] = 8 - data["slots_filled"]
 
     # Save updated data back to Firebase
-    ref.set(data)
+    ref.update(data)  # Use update instead of set to preserve existing data
 
-    # return redirect('/thank-you')
-    return render_template('booking_success.html', masjid=masjid, total_amount=total_amount)
+    # Render thank you page
+    return render_template('thank_you.html', masjid=masjid)
+
 
 
 @app.route('/thank-you')
@@ -241,28 +247,30 @@ def date_details(masjid):
     if not date:
         return redirect(f'/admin-dashboard/{masjid}')
 
-    # Fetch data from Firebase
-    ref = db.reference(f'bookings/{masjid}/2025/{date}')
+    # Firebase reference for the selected date
+    year = date.split('-')[0]
+    ref = db.reference(f'bookings/{masjid}/{year}/{date}')
     data = ref.get()
 
-    # Check if data exists and contains slot information
-    if not data or "slots" not in data or not isinstance(data["slots"], dict):
-        return render_template('date_details.html', masjid=masjid, date=date, slots=[])
+    # Check if the data exists for the given date
+    if not data or "slots" not in data:
+        return render_template('date_details.html', masjid=masjid, date=date, donors=[], message="No slots booked for this date.")
 
-    # Extract booked slot details
-    slots = []
+    # Extract slot details
+    donors = []
     for slot_number, details in data["slots"].items():
-        if details:  # Process only booked slots
-            slots.append({
+        if details:  # Only process booked slots
+            donors.append({
                 "slot": slot_number,
                 "name": details.get("name", "N/A"),
                 "phone": details.get("phone", "N/A"),
                 "email": details.get("email", "N/A"),
                 "payment_method": details.get("payment_method", "N/A"),
-                "payment_proof": details.get("payment_proof", None)
+                "payment_proof": details.get("payment_proof", None)  # Link to proof if available
             })
 
-    return render_template('date_details.html', masjid=masjid, date=date, slots=slots)
+    # Render the details in the template
+    return render_template('date_details.html', masjid=masjid, date=date, donors=donors)
 
 
 

@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Thank You - Ramadan Iftar Booking</title>
-    <link rel="stylesheet" href="static/styles.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
     <div class="container">
         <header class="header">
-            <img src="static/logo_ichc.jpg" alt="ICHC Logo" class="logo" height = 100px>
+            <img src="{{ url_for('static', filename='logo_ichc.jpg') }}" alt="ICHC Logo" class="logo" height = 100px>
         </header>
         <header2 class="header">
             <h2>Thank You!</h2>
