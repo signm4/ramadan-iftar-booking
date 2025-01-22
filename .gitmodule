@@ -1,3 +1,0 @@
-[submodule "hello-fly"]
-    path = hello-fly
-    url = https://github.com/<signm4>/hello-fly.git
